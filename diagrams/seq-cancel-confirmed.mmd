@@ -1,0 +1,51 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor B as Member A (browser)
+  actor OP as Operator
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  Note over B,AXS: BK-7KQ2M9 confirmed, paid THB 450.00, grant issued H7K3-9QXA, starts 2026-10-07 09:00
+  alt Member A cancels 2026-10-05 10:00 (47 h before start, 24 h or more): 100%
+    B->>P: GET /bookings/BK-7KQ2M9/cancel
+    P-->>B: 200 confirm screen "Refund THB 450.00" (PUR-R30)
+    B->>P: POST /bookings/BK-7KQ2M9/cancel
+    P->>PDB: (1) BEGIN, cancelled, refund_amount_satang 45000, cancel_reason and refund_reason member_cancel, COMMIT (PUR-R32)
+    P->>AXS: (2) POST /grants/BK-7KQ2M9/revoke
+    AXS-->>P: 200 {"status": "revoked"} (AXS-R17)
+    P->>PAY: (3) POST /refunds {"amount_satang": 45000, "reason": "member_cancel", "attempt": 1}
+    PAY-->>P: 201 {"id": "re_...", "status": "succeeded"} (PMT-R14, PMT-R16)
+    P->>PDB: grant_status revoked, refund_status succeeded, refund_attempt 1
+    P-->>B: 303 to /bookings/BK-7KQ2M9, cancelled, refund THB 450.00
+  else Member A cancels 2026-10-06 10:00 (23 h before start, under 24 h): no refund
+    B->>P: GET /bookings/BK-7KQ2M9/cancel
+    P-->>B: 200 confirm screen "Refund THB 0.00" (PUR-R30)
+    B->>P: POST /bookings/BK-7KQ2M9/cancel
+    P->>PDB: (1) BEGIN, cancelled, refund_amount_satang 0, member_cancel, COMMIT (PUR-R32)
+    P->>AXS: (2) POST /grants/BK-7KQ2M9/revoke
+    AXS-->>P: 200 {"status": "revoked"}
+    Note over P,PAY: (3) No refund call: the amount is 0. The payment stays recorded (AXS-R17)
+    P-->>B: 303 to /bookings/BK-7KQ2M9, cancelled, refund THB 0.00
+  else Operator cancels 2026-10-07 09:30 (after start, before end): always 100%
+    OP->>P: POST /operator/bookings/BK-7KQ2M9/cancel (PUR-R06)
+    P->>PDB: (1) BEGIN, cancelled, refund_amount_satang 45000, operator_cancel, COMMIT (PUR-R30, PUR-R32)
+    P->>AXS: (2) POST /grants/BK-7KQ2M9/revoke
+    AXS-->>P: 200 {"status": "revoked"}, H7K3-9QXA stops opening (AXS-R05)
+    P->>PAY: (3) POST /refunds {"amount_satang": 45000, "reason": "operator_cancel", "attempt": 1}
+    PAY-->>P: 201 {"status": "succeeded"}
+    P-->>OP: 303 to /operator/bookings, cancelled, refund THB 450.00
+  end
+  opt Revoke gets no answer (timeout, connection error or 5xx)
+    P->>AXS: POST /grants/BK-7KQ2M9/revoke
+    AXS--xP: no answer
+    Note over P: grant_status revoke_pending, "revocation pending". The refund waits for the revoke (PUR-Q10)<br/>Retried revoke first on GET /bookings/BK-7KQ2M9 or POST /bookings/BK-7KQ2M9/retry (PUR-R32, PUR-R37)
+  end
+  Note over B,P: Unsupported: Member cancel after start, partial cancel, reschedule, refunds other than 0% or 100% (PUR-R30)

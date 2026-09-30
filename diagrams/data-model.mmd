@@ -1,0 +1,37 @@
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart LR
+  subgraph Purchase
+    MEMBERS["members<br/>id PK<br/>email UNIQUE, lower-cased<br/>display_name, password_hash<br/>is_operator, plan_active<br/>created_at"]
+    SPACES["spaces<br/>id PK<br/>name, capacity<br/>hourly_rate_satang BIGINT<br/>archived_at"]
+    BOOKINGS["bookings<br/>id PK, reference UNIQUE BK-...<br/>member_id FK, space_id FK<br/>start_time, end_time, blocks<br/>party_size, note<br/>agreed_price_satang BIGINT, coverage<br/>status, hold_expires_at<br/>payment_session_id, payment_outcome<br/>(JSON payment_status)<br/>cancel_reason, refund_reason<br/>refund_amount_satang, refund_status, refund_attempt<br/>grant_status, grant_id, ticket_url<br/>EXCLUDE overlap WHERE status held or confirmed"]
+    P_CLOCK["test_clock<br/>one row, now or null"]
+    BOOKINGS -->|"member_id FK"| MEMBERS
+    BOOKINGS -->|"space_id FK"| SPACES
+  end
+  subgraph Payment
+    SESSIONS["payment_sessions<br/>id PK ps_...<br/>booking_reference UNIQUE<br/>amount_satang BIGINT, currency THB<br/>description, success_url, cancel_url<br/>expires_at, status, payment_status"]
+    ATTEMPTS["payment_attempts<br/>id PK pa_...<br/>session_id FK<br/>card_brand, card_last4<br/>outcome, decline_code, created_at"]
+    REFUNDS["refunds<br/>id PK re_...<br/>payment_session_id FK<br/>booking_reference<br/>amount_satang BIGINT, reason<br/>attempt, status<br/>UNIQUE (payment_session_id, attempt)"]
+    M_CLOCK["test_clock<br/>one row, now or null"]
+    ATTEMPTS -->|"session_id FK"| SESSIONS
+    REFUNDS -->|"payment_session_id FK"| SESSIONS
+  end
+  subgraph Access
+    GRANTS["grants<br/>id PK gr_...<br/>booking_reference UNIQUE<br/>member_ref, space_id, space_name<br/>valid_from, valid_until<br/>ticket_code UNIQUE, ticket_token UNIQUE<br/>status issued, checked_in or revoked<br/>revoked_at, null until the first revoke"]
+    SCANS["scans<br/>id PK<br/>scanned_at, space_id<br/>normalised input, result<br/>grant_id FK, null if unmatched"]
+    A_CLOCK["test_clock<br/>one row, now or null"]
+    SCANS -->|"grant_id FK"| GRANTS
+  end
+  BOOKINGS <-.->|"booking_reference, payment_session_id<br/>reference (not FK)"| SESSIONS
+  GRANTS -.->|"booking_reference<br/>reference (not FK)"| BOOKINGS
+  GRANTS -.->|"member_ref<br/>reference (not FK)"| MEMBERS
+  GRANTS -.->|"space_id<br/>reference (not FK)"| SPACES
+  classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
+  classDef payment fill:#dcfce7,stroke:#15803d,color:#052e16
+  classDef access fill:#fef3c7,stroke:#b45309,color:#3b1d02
+  class MEMBERS,SPACES,BOOKINGS,P_CLOCK purchase
+  class SESSIONS,ATTEMPTS,REFUNDS,M_CLOCK payment
+  class GRANTS,SCANS,A_CLOCK access
+  style Purchase fill:#dbeafe,stroke:#1d4ed8
+  style Payment fill:#dcfce7,stroke:#15803d
+  style Access fill:#fef3c7,stroke:#b45309

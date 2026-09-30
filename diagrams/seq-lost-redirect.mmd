@@ -1,0 +1,40 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor B as Member A (browser)
+  actor OP as Operator
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  Note over B,PAY: 10:05 Member A pays BK-7KQ2M9 on /pay/ps_... (4242424242424242)
+  B->>PAY: POST /pay/ps_...
+  Note over PAY: session complete, payment_status paid (PMT-R10)
+  PAY--xB: 303 to success_url?session_id=ps_... (tab closed, never reaches Purchase)
+  Note over P,PDB: BK-7KQ2M9 is still held in Purchase. Payment calls no one, no webhook (PMT-R18, ADR-0004)
+  Note over B,AXS: 10:20, after hold_expires_at 10:15. Anything that touches the held booking reconciles it (PUR-R24, ADR-0007)
+  alt Member A opens the booking page or My bookings
+    B->>P: GET /bookings/BK-7KQ2M9 (or GET /bookings/mine)
+  else Operator presses Reconcile
+    OP->>P: POST /operator/bookings/BK-7KQ2M9/reconcile (PUR-R06)
+  else Another booking of Meeting Room A runs the pre-insert sweep
+    B->>P: POST /spaces/1/book (any Member, PUR-R22)
+  end
+  P->>PAY: GET /payment-sessions/ps_..., Bearer PAYMENT_API_TOKEN (no DB transaction open, PUR-R35)
+  alt Payment answers paid
+    PAY-->>P: 200 {"status": "complete", "payment_status": "paid", "amount_satang": 45000, "currency": "THB"}
+    P->>PDB: BEGIN, match, held to confirmed even though the hold lapsed, COMMIT (PUR-R25, PUR-R28)
+    Note over P,PAY: Confirmed, not expired. No attempt was accepted at or after expires_at 10:13,<br/>so the outcome was final before the hold ended (PMT-R11, PUR-R40)
+    P->>AXS: POST /grants {"booking_reference": "BK-7KQ2M9", ...} (PUR-R26)
+    AXS-->>P: 201 {"ticket_code": "H7K3-9QXA", "status": "issued"}
+    P-->>B: booking page: confirmed, "View e-ticket"
+  else Payment unreachable (timeout=5)
+    PAY--xP: no answer
+    Note over P: Nothing changes. Page says "Payment status unknown, refresh later" (PUR-R24)<br/>A conflicting insert gets 503 or the flash "try again"
+  end

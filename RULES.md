@@ -4,7 +4,7 @@ Business rules of Cowork Booking, by context, in ID order. Each rule uses the cl
 
 Policy status is one of:
 
-- Decided: a project decision, cited as D1 to D28 (DECISIONS.md), as an ADR, or as the row of "Disputes decided in M1" (DECISIONS.md) that reads a default more precisely (row 7 for the derived Completed state). The D number comes first where one applies. "ADR (M2): <topic>" names an ADR that M2 must write; these docs cite these topics: three contexts, Member in Purchase, database per service, Purchase-only callers, no webhooks, lazy hold expiry and reconciliation, bearer ticket link, SameSite as the CSRF mitigation, segno, delivery without Nomad and rollback, mock checkout and test cards, card data handling, service authentication. The last three are new topics for M2.
+- Decided: a project decision, cited as D1 to D28 (DECISIONS.md), as an ADR, or as the row of "Disputes decided in M1" (DECISIONS.md) that reads a default more precisely (row 7 for the derived Completed state). The D number comes first where one applies. ADR-NNNN names an ADR in adr/; these docs cite these topics: three contexts, Member in Purchase, database per service, Purchase-only callers, no webhooks, lazy hold expiry and reconciliation, bearer ticket link, SameSite as the CSRF mitigation, segno, delivery without Nomad and rollback, mock checkout and test cards, card data handling, service authentication. The last three are new topics for M2.
 - Stakeholder-clarified: scoped, with its source. Only PUR-R17, the booking price (course instructor, class rules PR #14 at 25ca71e, merged as 58a1477).
 - Observed: seed behaviour whose intent is unresolved. No rule here is Observed; class behaviour we do not adopt is recorded in ID_MAP.md.
 - Superseded: replaced, with a link to the replacing rule. No rule here is Superseded.
@@ -78,13 +78,13 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | End every login session 12 h after login, whatever the activity; clear the cookie on logout in that browser; set `purchase_session` HttpOnly and SameSite=Lax, plus Secure when PUBLIC_URL starts with https; refuse to start when SECRET_KEY is unset or empty. |
 | Policy status | Decided (D15) |
-| Decision source | Project team (D15). SameSite=Lax is the CSRF mitigation: ADR (M2): SameSite as the CSRF mitigation. |
+| Decision source | Project team (D15). SameSite=Lax is the CSRF mitigation: ADR-0009 (SameSite as the CSRF mitigation). |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:20 falls back to a public default SECRET_KEY; app.py:508 and app.py:536 write and pop the user id in the cookie, with no lifetime set anywhere. |
 | Terms | PUR-T03 |
 | Candidate responsibility and dependencies | Purchase. Store the login instant in the session and compare it with clock.now() on every request (D27); do not rely on Flask's session lifetime, which slides with each request and reads the real clock. The cookies `payment_session` and `access_session` belong to the other services, which set the same flags (PMT-R19, AXS-R18). Every browser action is a POST (PUR-R37). |
 | Open question | None. Replay of a copied cookie after logout, inside the 12 h, is an accepted and documented trade-off (D15). |
 | Clarification owner | Project team |
-| Next use | ADR (M2): SameSite as the CSRF mitigation; Purchase tests with the test clock (M5). |
+| Next use | ADR-0009 (SameSite as the CSRF mitigation); Purchase tests with the test clock (M5). |
 
 | # | Kind | Channel | Given | When | Expected result under this rule |
 |---|---|---|---|---|---|
@@ -126,7 +126,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Require login to book and to see My bookings; show a booking and its actions only to its owning Member or an operator, and answer any other logged-in Member with 404; an anonymous request gets the login step (form) or 401 (JSON) before any lookup. |
 | Policy status | Decided (D15, D17) |
-| Decision source | Project team (D15, D17). The login step or 401 for anonymous callers refines D17: DECISIONS.md, Disputes decided in M1, row 1. The e-ticket URL in Access is a bearer link: ADR (M2): bearer ticket link. |
+| Decision source | Project team (D15, D17). The login step or 401 for anonymous callers refines D17: DECISIONS.md, Disputes decided in M1, row 1. The e-ticket URL in Access is a bearer link: ADR-0008 (bearer ticket link). |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:871-889 /bookings/mine is the only route that checks the session owner; app.py:902 and app.py:917 read and delete any booking by id for anyone. |
 | Terms | PUR-T01, PUR-T02, PUR-T17 |
 | Candidate responsibility and dependencies | Purchase. The booking's name and email come from the logged-in Member, never from a typed field. The e-ticket page (Access) is not covered here. |
@@ -567,13 +567,13 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Whenever Purchase shows or acts on a held booking that has a payment session (booking page, My bookings, cancel, the pre-insert sweep, the operator's Reconcile), call GET /payment-sessions/{id}: paid goes to fulfilment, unpaid after the hold marks it expired, unpaid inside the hold changes nothing, and an unreachable Payment changes nothing. The hold has lapsed when clock.now() is at or after hold_expires_at. A held booking without a session is expired without a Payment call once its hold lapses (PUR-Q09). |
 | Policy status | Decided (D13) |
-| Decision source | Project team (D13). Course [extraction site]: "Purchase interprets the result". No webhooks: ADR (M2): Purchase-only callers, no webhooks. |
+| Decision source | Project team (D13). Course [extraction site]: "Purchase interprets the result". No webhooks: ADR-0004 (Purchase-only callers), no webhooks. |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:960-965 marks a booking paid in the same process; nothing reads an outcome from elsewhere. |
 | Terms | PUR-T26, PUR-T20, PUR-T19, PUR-T27, PUR-T34 |
 | Candidate responsibility and dependencies | Purchase; Payment GET /payment-sessions/{id}. Purchase trusts its stored session id, not the session_id in the return URL. Invariant: every paid session ends as a confirmed booking or a refund attempt. |
 | Open question | PUR-Q09 (held booking without a session). |
 | Clarification owner | Project team |
-| Next use | ADR (M2): lazy hold expiry and reconciliation; e2e "lost redirect reconciled" and "hold expiry frees the slot" (M6). |
+| Next use | ADR-0007 (lazy hold expiry and reconciliation); e2e "lost redirect reconciled" and "hold expiry frees the slot" (M6). |
 
 | # | Kind | Channel | Given | When | Expected result under this rule |
 |---|---|---|---|---|---|
@@ -828,7 +828,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Reach Payment and Access only through their HTTP APIs with bearer tokens (PAYMENT_API_TOKEN, ACCESS_API_TOKEN) and timeout=5; never read another service's database; never call while a database transaction is open; treat a timeout or connection error as "unreachable"; Payment and Access never call Purchase. |
 | Policy status | Decided (D13, D28) |
-| Decision source | Project team (D13, D28). ADR (M2): database per service; ADR (M2): Purchase-only callers, no webhooks. Course [contexts site]: "Shared references connect the models. They do not make them one shared object." |
+| Decision source | Project team (D13, D28). ADR-0003 (database per service); ADR-0004 (Purchase-only callers), no webhooks. Course [contexts site]: "Shared references connect the models. They do not make them one shared object." |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:23-25 and app.py:387 one process shares one database connection for booking, payment and access. |
 | Terms | PUR-T17, PUR-T18, PUR-T26, PUR-T33, PMT-T17, AXS-T19 |
 | Candidate responsibility and dependencies | Purchase owns payment_client.py and access_client.py, the one boundary where tests stub the providers. Internal and public URLs are separate settings. |
@@ -872,13 +872,13 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Run every state-changing browser action as a POST: book, cancel, log out, Retry, Reconcile, archive, the plan toggle and every space edit. A GET never starts one; it may only run the idempotent sync of D13, D19 and D20 (reconcile, pending grant, revoke or refund), which moves a booking only toward an outcome already decided. POST /logout clears purchase_session. |
 | Policy status | Decided (D15) |
-| Decision source | Project team (D15). ADR (M2): SameSite as the CSRF mitigation: SameSite=Lax holds back the cookie only on cross-site POSTs, so this rule is what makes it a CSRF mitigation. |
+| Decision source | Project team (D15). ADR-0009 (SameSite as the CSRF mitigation): SameSite=Lax holds back the cookie only on cross-site POSTs, so this rule is what makes it a CSRF mitigation. |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:533-536 logout is already a POST that pops the user id from the cookie. |
 | Terms | PUR-T03, PUR-T26, PUR-T30 |
 | Candidate responsibility and dependencies | Purchase (all forms and routes). Payment's Pay (PMT-R10) and the Access kiosk room choice and scan (AXS-R11) are POSTs too. |
 | Open question | None. |
 | Clarification owner | Project team |
-| Next use | ADR (M2): SameSite as the CSRF mitigation; Purchase route test that every GET changes nothing except the D13, D19 and D20 sync (M5). |
+| Next use | ADR-0009 (SameSite as the CSRF mitigation); Purchase route test that every GET changes nothing except the D13, D19 and D20 sync (M5). |
 
 | # | Kind | Channel | Given | When | Expected result under this rule |
 |---|---|---|---|---|---|
@@ -961,8 +961,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | Every Payment JSON API route (POST /payment-sessions, GET /payment-sessions/{id}, POST /payment-sessions/{id}/expire, POST /refunds) needs the header "Authorization: Bearer" followed by PAYMENT_API_TOKEN. A missing or wrong token, or the wrong scheme, gets 401 {"error": "unauthorized"} before any validation or lookup (401 before 400 or 404) and changes nothing. Payment refuses to start when PAYMENT_API_TOKEN is unset or empty. The hosted page, /health and the operator page do not use this token. |
-| Policy status | Decided (D13; ADR (M2): Purchase-only callers, no webhooks) |
-| Decision source | Project team (ADR (M2): Purchase-only callers, no webhooks); D13 makes Purchase the only caller |
+| Policy status | Decided (D13; ADR-0004 (Purchase-only callers), no webhooks) |
+| Decision source | Project team (ADR-0004 (Purchase-only callers), no webhooks); D13 makes Purchase the only caller |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:987-997 `POST /bookings/<int:booking_id>/pay` takes any anonymous caller and a force_failure flag. |
 | Terms | PMT-T17, PMT-T02, PMT-T12 |
 | Candidate responsibility and dependencies | Payment checks the token with a constant-time compare. Purchase keeps the same PAYMENT_API_TOKEN in its env and sends it on every call with timeout=5 (D28). |
@@ -1123,8 +1123,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | Before any attempt, the hosted page checks the card fields in this order, after removing spaces from the number: number 13-19 digits; CVC 3 or 4 digits; expiry MM/YY; expiry month not before the current Bangkok month of clock.now(). The first failure is flashed on the page ("card_number must be 13-19 digits", "cvc must be 3 or 4 digits", "expiry must be in MM/YY format", "card has expired"); no attempt is stored and the session stays open. There is no Luhn or card network check (mock). |
-| Policy status | Decided (D27; ADR (M2): mock checkout and test cards) |
-| Decision source | Project team (ADR (M2): mock checkout and test cards; D27 for the clock); keeps the observed check that a class contributor recorded (class rules PR #1 at 0326c8c, merged in main 58a1477) |
+| Policy status | Decided (D27; ADR-0018 (mock checkout and test cards)) |
+| Decision source | Project team (ADR-0018 (mock checkout and test cards); D27 for the clock); keeps the observed check that a class contributor recorded (class rules PR #1 at 0326c8c, merged in main 58a1477) |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:232-253 validate_card and its regexes (kept); app.py:250 reads datetime.now(timezone.utc) (to be replaced by clock.now()); app.py:953-955 a card is required even for amount 0. |
 | Terms | PMT-T08, PMT-T07, PMT-T11 |
 | Candidate responsibility and dependencies | Payment, reusing validate_card. Depends on PMT-R02 (no session below THB 10.00) and on Purchase's coverage rules PUR-R19 and PUR-R20 (free and plan bookings skip Payment, D10). |
@@ -1148,8 +1148,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | An attempt's outcome depends only on the card number: 4242424242424242 succeeded; 4000000000000002 declined(generic_decline); 4000000000009995 declined(insufficient_funds); 4000000000000069 declined(expired_card); 4000000000000119 declined(processing_error); 4000000000005126 succeeded (its first refund fails, PMT-R16). Any future expiry and any CVC. Every other number that passes PMT-R08 declines with generic_decline. No real card is charged, and no request field can force an outcome. |
-| Policy status | Decided (ADR (M2): mock checkout and test cards) |
-| Decision source | Project team (ADR (M2): mock checkout and test cards); D19 relies on the refund-failure card |
+| Policy status | Decided (ADR-0018 (mock checkout and test cards)) |
+| Decision source | Project team (ADR-0018 (mock checkout and test cards)); D19 relies on the refund-failure card |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:957-958 "force_failure": true in a JSON body gives 402, a test hook open to any caller. |
 | Terms | PMT-T10, PMT-T08, PMT-T09 |
 | Candidate responsibility and dependencies | Payment. The e2e suite (M6) uses these cards; no other service depends on them. |
@@ -1200,7 +1200,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Candidate responsibility and dependencies | Payment checks the time inside the attempt transaction (PMT-R12). Purchase sets expires_at (D12) and expires the booking once its hold lapses (D13). |
 | Open question | None. |
 | Clarification owner | Project team |
-| Next use | ADR (M2): Purchase-only callers, no webhooks (why no webhook is needed); e2e lost redirect and hold expiry (M6). |
+| Next use | ADR-0004 (Purchase-only callers), no webhooks (why no webhook is needed); e2e lost redirect and hold expiry (M6). |
 
 | # | Kind | Channel | Given | When | Expected result under this rule |
 |---|---|---|---|---|---|
@@ -1237,8 +1237,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | For each attempt Payment stores only the card brand and the last 4 digits (e.g. visa, 4242). It never stores, logs, flashes or puts in a URL the full number, the expiry or the CVC. After a form error the card fields come back empty. Access logs record the path only (query-string scrubbing kept from the seed). |
-| Policy status | Decided (D28; ADR (M2): card data handling) |
-| Decision source | Project team (ADR (M2): card data handling); D28 for flash() instead of ?error= |
+| Policy status | Decided (D28; ADR-0020 (card data handling)) |
+| Decision source | Project team (ADR-0020 (card data handling)); D28 for flash() instead of ?error= |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:964 stores card_number[-4:] only; gunicorn.conf.py:1-5 logs the path without the query string. |
 | Terms | PMT-T11, PMT-T08, PMT-T09 |
 | Candidate responsibility and dependencies | Payment. The operator page (PMT-R17) shows only brand and last4; Purchase never receives card data. |
@@ -1308,7 +1308,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | POST /refunds answers with the final outcome, succeeded or failed, in the same response. There is no pending state, and a stored outcome never changes. For a session paid with test card 4000000000005126 the first refund stored for that session fails and later ones succeed; for every other paid session refunds succeed. Payment recognises that card from the stored last4 5126 of the session's succeeded attempt (the only succeeding test card ending in 5126), never from a stored card number. Refunds never change the session's status or payment_status: a refunded session still reads complete and paid. |
 | Policy status | Decided (D19) |
-| Decision source | Project team (D19); ADR (M2): mock checkout and test cards |
+| Decision source | Project team (D19); ADR-0018 (mock checkout and test cards) |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:917-930 cancel is a DELETE; no refund exists. |
 | Terms | PMT-T12, PMT-T10, PMT-T15, PMT-T04 |
 | Candidate responsibility and dependencies | Payment. Purchase stores the outcome on the booking. A stored failed refund shows "Refund failed. The operator will follow up.", and only the operator starts attempt+1 (D19, PUR-R33). "Refund pending" means only that Payment gave no answer, or that the refund waits for its revoke (PUR-T30). |
@@ -1329,8 +1329,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | GET /operator needs HTTP Basic with the password OPERATOR_PASSWORD, compared in constant time; any user name is accepted; otherwise 401 with a Basic challenge. Payment refuses to start when OPERATOR_PASSWORD is unset or empty. The page lists sessions, attempts (card brand and last4 only) and refunds, and shows all-time totals: collected (sum over paid sessions), refunded (sum of succeeded refunds), net = collected minus refunded, and "estimated platform commission (20% of net)", rounded half up to the satang. Each failed refund is listed as "needs manual follow-up" until a later refund attempt for the same session succeeds. |
-| Policy status | Decided (D25; ADR (M2): service authentication) |
-| Decision source | Project team (D24, D25; ADR (M2): service authentication) |
+| Policy status | Decided (D25; ADR-0019 (service authentication)) |
+| Decision source | Project team (D24, D25; ADR-0019 (service authentication)) |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:1027-1050 /metrics and /dashboard show revenue to anyone without a login. |
 | Terms | PMT-T18, PMT-T13, PMT-T14, PMT-T15, PMT-T16 |
 | Candidate responsibility and dependencies | Payment. Purchase's dashboard shows booking metrics only (D24); plan and free bookings never appear here because they never reach Payment. |
@@ -1353,7 +1353,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Payment makes no outbound HTTP call and reads no other service's database: no webhook to Purchase, no call to Access. It reports outcomes when Purchase asks (GET /payment-sessions/{id} and the POST responses) and sends the Member's browser back by redirect. Payment never sets or reads a booking status, a coverage or a grant. |
 | Policy status | Decided (D13) |
-| Decision source | Project team (D12, D13); ADR (M2): Purchase-only callers, no webhooks; Course [extraction site]: "Purchase interprets the result" |
+| Decision source | Project team (D12, D13); ADR-0004 (Purchase-only callers), no webhooks; Course [extraction site]: "Purchase interprets the result" |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:960-965 payment writes paid straight onto the booking row in the one shared database. |
 | Terms | PMT-T01, PMT-T02, PMT-T04 |
 | Candidate responsibility and dependencies | Payment is a provider only. Purchase polls and reconciles (D13), confirms (D14) and issues grants (D20). |
@@ -1375,7 +1375,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Refuse to start when SECRET_KEY is unset or empty. Set the payment_session cookie HttpOnly and SameSite=Lax, plus Secure when PUBLIC_URL starts with https. It carries only flashed messages for the hosted page, never card data. |
 | Policy status | Decided (D15) |
-| Decision source | Project team (D15). ADR (M2): SameSite as the CSRF mitigation. |
+| Decision source | Project team (D15). ADR-0009 (SameSite as the CSRF mitigation). |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:20 falls back to a public default SECRET_KEY. |
 | Terms | PMT-T07, PMT-T11 |
 | Candidate responsibility and dependencies | Payment. Purchase and Access follow the same rule for their own cookies (PUR-R03, AXS-R18). |
@@ -1485,8 +1485,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | POST /grants, GET /grants/{booking_reference} and POST /grants/{booking_reference}/revoke need the header `Authorization: Bearer <ACCESS_API_TOKEN>`. With no token, a wrong one or the wrong scheme, Access answers 401 {"error": "unauthorized"} before any validation or lookup (401 before 400 or 404) and changes nothing. Access refuses to start when ACCESS_API_TOKEN is unset or empty; an empty token never matches. Access makes no outbound call to Purchase, Payment or a lock. |
-| Policy status | Decided (D19, D20; ADR (M2): Purchase-only callers, no webhooks) |
-| Decision source | Project team (ADR (M2): Purchase-only callers, no webhooks); D19 and D20 name Purchase as the only caller |
+| Policy status | Decided (D19, D20; ADR-0004 (Purchase-only callers), no webhooks) |
+| Decision source | Project team (ADR-0004 (Purchase-only callers), no webhooks); D19 and D20 name Purchase as the only caller |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:999-1002 the JSON unlock route answers anyone, with no token or session. |
 | Terms | AXS-T01, AXS-T02, AXS-T19 |
 | Candidate responsibility and dependencies | Access enforces it with a constant-time compare. Only Purchase holds ACCESS_API_TOKEN. The e-ticket (bearer link, AXS-R09) and the kiosk (Staff password, AXS-R11) are not part of this API. |
@@ -1555,7 +1555,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | The e-ticket shows the ticket code in large text and as a QR (inline SVG made with segno) that encodes exactly the same string, H7K3-9QXA. The QR carries no URL, token, booking reference or other data. |
 | Policy status | Decided (D22) |
-| Decision source | Project team (D22); ADR (M2): segno |
+| Decision source | Project team (D22); ADR-0010 (segno) |
 | Implementation evidence | Not implemented yet (planned M5). |
 | Terms | AXS-T08, AXS-T09, AXS-T11 |
 | Candidate responsibility and dependencies | Access renders it server-side; no image file and no external service. A USB QR scanner types the decoded string, then Enter, into the kiosk input. |
@@ -1597,13 +1597,13 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Each grant has a random 128-bit ticket token, and ticket_url is Access's public URL plus `/t/<ticket_token>`. GET `/t/<ticket_token>` shows the e-ticket to whoever holds the link, with no login; an unknown token gives 404. The page has no action and shows no email and no member_ref. Whoever holds the link can read the code, so sharing the link shares entry for the window: the accepted bearer trade-off. The ticket token comes from Python's secrets module. The e-ticket response sends Referrer-Policy: no-referrer. The /t/ path also appears in the server access log; that is accepted at the same trust level as the database. |
 | Policy status | Decided (D17) |
-| Decision source | Project team (D17); ADR (M2): bearer ticket link |
+| Decision source | Project team (D17); ADR-0008 (bearer ticket link) |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:812-834 the confirmation page opens for anyone by a sequential booking id. |
 | Terms | AXS-T10, AXS-T11, AXS-T18 |
 | Candidate responsibility and dependencies | Access generates the token (UNIQUE). Purchase shows the "View e-ticket" link only to the booking's owner or an operator (D17). |
 | Open question | AXS-Q03 (sending the e-ticket by email) |
 | Clarification owner | Project team |
-| Next use | ADR (M2): bearer ticket link; e2e ticket view (M6). |
+| Next use | ADR-0008 (bearer ticket link); e2e ticket view (M6). |
 
 | # | Kind | Channel | Given | When | Expected result under this rule |
 |---|---|---|---|---|---|
@@ -1641,8 +1641,8 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Field | Value |
 |---|---|
 | Rule | GET and POST /checkin need HTTP Basic with the password STAFF_PASSWORD, compared in constant time; any user name is accepted; otherwise 401. Access refuses to start when STAFF_PASSWORD is unset or empty; an empty password never matches. Staff first selects the room, with a POST, from the space_id and space_name values in stored grants (tombstones excluded; one entry per space_id, labelled with its latest space_name). The kiosk remembers the room in its access_session cookie until Staff changes it. A scan with no room selected is refused with a flashed "Select the room first". Access never asks Purchase for rooms. |
-| Policy status | Decided (D15, D21; ADR (M2): service authentication) |
-| Decision source | Project team (D15, D21; ADR (M2): service authentication) |
+| Policy status | Decided (D15, D21; ADR-0019 (service authentication)) |
+| Decision source | Project team (D15, D21; ADR-0019 (service authentication)) |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:852-869 the unlock form accepts anyone, with no sign-in. |
 | Terms | AXS-T02, AXS-T07, AXS-T13, AXS-T14, AXS-T15 |
 | Candidate responsibility and dependencies | Access. The room lives in the access_session cookie (HttpOnly, SameSite=Lax, D15, AXS-R18), so a cross-site POST arrives without a room and is refused. Staff is not a Member and has no Purchase account. |
@@ -1713,7 +1713,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Decision source | Project team (D21 for the window, D28 for flashed results); the order of the checks is the default of AXS-Q07 |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:980-983 checks only that the booking exists (404) and is paid (402). |
 | Terms | AXS-T06, AXS-T13, AXS-T16 |
-| Candidate responsibility and dependencies | Access. The order puts the most decisive answer first, so a cancelled ticket says revoked wherever it is scanned. The kiosk checks room, time and revocation, never identity: the subject is whoever presents the ticket code, because the ticket is a bearer credential (D17; ADR (M2): bearer ticket link). |
+| Candidate responsibility and dependencies | Access. The order puts the most decisive answer first, so a cancelled ticket says revoked wherever it is scanned. The kiosk checks room, time and revocation, never identity: the subject is whoever presents the ticket code, because the ticket is a bearer credential (D17; ADR-0008 (bearer ticket link)). |
 | Open question | AXS-Q07 (order of the kiosk checks); AXS-Q02 (real door-lock integration) |
 | Clarification owner | Course instructor (Integrations/Locks scope) and project team for AXS-Q02; Project team for AXS-Q07 and the rule as stated |
 | Next use | e2e wrong room, revoked and unknown code cases (M6). |
@@ -1801,7 +1801,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 |---|---|
 | Rule | Refuse to start when SECRET_KEY is unset or empty. Set the access_session cookie HttpOnly and SameSite=Lax, plus Secure when PUBLIC_URL starts with https. It holds only the selected kiosk room and flashed results, and lasts until the browser closes or Staff changes the room. |
 | Policy status | Decided (D15) |
-| Decision source | Project team (D15). ADR (M2): SameSite as the CSRF mitigation. |
+| Decision source | Project team (D15). ADR-0009 (SameSite as the CSRF mitigation). |
 | Implementation evidence | Not implemented yet (planned M5). Spacey: source inspected at 5a1cf3d, app.py:20 falls back to a public default SECRET_KEY. |
 | Terms | AXS-T13, AXS-T15 |
 | Candidate responsibility and dependencies | Access. The kiosk's CSRF defence (AXS-R11) depends on SameSite. Purchase and Payment follow the same rule for their own cookies (PUR-R03, PMT-R19). |

@@ -1,0 +1,47 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor B as Member A (browser)
+  actor OP as Operator
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  Note over B,AXS: BK-7KQ2M9 was paid with test card 4000000000005126: stored as visa 5126 (PMT-R13)<br/>Confirmed, THB 450.00, grant issued
+  B->>P: POST /bookings/BK-7KQ2M9/cancel at 2026-10-05 10:00 (47 h before start, 100%)
+  P->>PDB: (1) BEGIN, cancelled, refund_amount_satang 45000, member_cancel, COMMIT (PUR-R32)
+  P->>AXS: (2) POST /grants/BK-7KQ2M9/revoke
+  AXS-->>P: 200 {"status": "revoked"}
+  P->>PAY: (3) POST /refunds {"payment_session_id": "ps_...", "amount_satang": 45000, "reason": "member_cancel", "attempt": 1}
+  Note over PAY: First refund for a session paid with last4 5126 fails (PMT-R16)
+  PAY-->>P: 201 {"id": "re_...", "status": "failed"}, final, no pending state
+  P->>PDB: refund_status failed, refund_attempt 1
+  P-->>B: 303 to /bookings/BK-7KQ2M9, cancelled, refund failed, the operator follows up
+  B->>P: POST /bookings/BK-7KQ2M9/retry
+  P-->>B: 303 to /bookings/BK-7KQ2M9, nothing sent: only the operator starts attempt 2 (PUR-R33)
+  OP->>PAY: GET /operator (HTTP Basic, user operator, OPERATOR_PASSWORD)
+  PAY-->>OP: 200 refund re_... failed "needs manual follow-up"<br/>collected THB 450.00, refunded THB 0.00 (PMT-R17)
+  OP->>P: GET /operator/bookings
+  P-->>OP: 200 BK-7KQ2M9 cancelled, refund failed, attempt 1, Retry button (PUR-R06)
+  OP->>P: POST /operator/bookings/BK-7KQ2M9/retry
+  P->>PAY: POST /refunds {"payment_session_id": "ps_...", "amount_satang": 45000, "reason": "member_cancel", "attempt": 2}
+  Note over PAY: Session row FOR UPDATE: refunded 0 + 45000 is at most collected 45000 (PMT-R15)
+  PAY-->>P: 201 {"id": "re_...", "status": "succeeded"}
+  P->>PDB: refund_status succeeded, refund_attempt 2
+  P-->>OP: 303 to /operator/bookings, refund THB 450.00 succeeded
+  opt Repeat of attempt 2 (double click)
+    P->>PAY: POST /refunds {..., "attempt": 2}
+    PAY-->>P: 200 stored refund, nothing new (PMT-R14)
+  end
+  opt An attempt 3 for the same session (direct API call, Purchase never sends it)
+    P->>PAY: POST /refunds {..., "amount_satang": 45000, "attempt": 3}
+    PAY-->>P: 409, refunded total would exceed collected, nothing stored (PMT-R15)
+  end
+  OP->>PAY: GET /operator
+  PAY-->>OP: 200 label cleared, collected THB 450.00, refunded THB 450.00, net THB 0.00,<br/>estimated platform commission (20% of net) THB 0.00 (PMT-R17)

@@ -1,0 +1,36 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor B as Member A (browser)
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  Note over B,PAY: BK-7KQ2M9 is held until 10:15, session ps_... is open until 10:13, THB 450.00
+  B->>PAY: GET /pay/ps_...
+  PAY-->>B: 200 hosted page, "Pay by 10:13", test cards listed (PMT-R07)
+  B->>PAY: POST /pay/ps_... card_number=4242 4242 4242, expiry=12/28, cvc=123
+  PAY-->>B: 200 re-render "card_number must be 13-19 digits", card fields empty
+  Note over PAY: A form error is not an attempt: nothing stored (PMT-R08, PMT-R13)
+  B->>PAY: POST /pay/ps_... card_number=4000000000000002, expiry=12/28, cvc=123
+  Note over PAY: One transaction, session row FOR UPDATE (PMT-R12)<br/>attempt pa_... declined(generic_decline) stored, visa 0002 only (PMT-R09)<br/>session stays open and unpaid (PMT-R10)
+  PAY-->>B: 200 re-render "Your card was declined.", data-decline-code="generic_decline"
+  Note over B,PAY: Same for 4000000000009995 insufficient_funds, 4000000000000069 expired_card,<br/>4000000000000119 processing_error. Any other valid-looking number: generic_decline (PMT-R09)
+  Note over B,P: A decline never touches purchase_session: Member A is still logged in (PUR-R03, PMT-R19)<br/>Booking stays held, slot still blocked (PUR-R12)
+  B->>PAY: POST /pay/ps_... card_number=4242424242424242, expiry=12/28, cvc=123 (retry, same page)
+  Note over PAY: attempt pa_... succeeded, session complete and paid (PMT-R10, PMT-R12)
+  PAY-->>B: 303 to success_url?session_id=ps_...
+  B->>P: GET /bookings/BK-7KQ2M9/return?session_id=ps_...
+  P->>PAY: GET /payment-sessions/ps_... (PUR-R24)
+  PAY-->>P: 200 {"status": "complete", "payment_status": "paid", "amount_satang": 45000}
+  Note over P: Match, status confirmed (PUR-R25)
+  P->>AXS: POST /grants {"booking_reference": "BK-7KQ2M9", ...} (PUR-R26)
+  AXS-->>P: 201 {"ticket_code": "H7K3-9QXA", "status": "issued"} (AXS-R01)
+  P-->>B: 303 to /bookings/BK-7KQ2M9, confirmed, "View e-ticket"
+  B->>PAY: POST /pay/ps_... again (double submit or Back)
+  PAY-->>B: 303 to success_url?session_id=ps_..., no attempt stored, no second charge (PMT-R12)

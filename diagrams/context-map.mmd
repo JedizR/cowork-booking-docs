@@ -1,20 +1,38 @@
 flowchart LR
   Member([Member])
+  Operator([Operator])
+  Staff([Staff])
   subgraph Purchase
-    P[Purchase service<br/>members, spaces, bookings, price, coverage]
+    P["Purchase service :8001<br/>Owns price and coverage<br/>spaces, availability, bookings, cancellation"]
+    PM_ACC["Member accounts<br/>email, display_name, password_hash<br/>no Identity context (ADR-0002)"]
+    P --- PM_ACC
   end
   subgraph Payment
-    PM[Payment service<br/>sessions, attempts, refunds]
+    PAY["Payment service :8002<br/>Owns payment outcomes<br/>sessions, attempts, refunds"]
+    PAY_H["Hosted mock checkout /pay<br/>test cards, no real money (ADR-0018)"]
+    PAY --- PAY_H
   end
   subgraph Access
-    A[Access service<br/>grants, ticket codes, check-in]
+    AXS["Access service :8003<br/>Owns grants and issuance<br/>grants, ticket codes"]
+    AXS_T["E-ticket /t and kiosk /checkin<br/>mock lock (ADR-0017)"]
+    AXS --- AXS_T
   end
-  Member --> P
-  P -- "collect this agreed amount" --> PM
-  P -- "issue an authorised grant" --> A
+  Member -->|"book, cancel"| P
+  Member -->|"pay by card"| PAY_H
+  Member -->|"open e-ticket"| AXS_T
+  Operator -->|"spaces, cancel, retry, reconcile, plan"| P
+  Operator -->|"money totals, failed refunds"| PAY
+  Staff -->|"scan ticket code"| AXS_T
+  P ==>|"Collect this agreed amount<br/>Purchase interprets the result"| PAY
+  P ==>|"Issue an authorised grant<br/>revoke on cancel"| AXS
+  classDef actor fill:#ffffff,stroke:#334155,color:#0f172a
   classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
   classDef payment fill:#dcfce7,stroke:#15803d,color:#052e16
   classDef access fill:#fef3c7,stroke:#b45309,color:#3b1d02
-  class P purchase
-  class PM payment
-  class A access
+  class Member,Operator,Staff actor
+  class P,PM_ACC purchase
+  class PAY,PAY_H payment
+  class AXS,AXS_T access
+  style Purchase fill:#dbeafe,stroke:#1d4ed8
+  style Payment fill:#dcfce7,stroke:#15803d
+  style Access fill:#fef3c7,stroke:#b45309

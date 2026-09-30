@@ -1,0 +1,69 @@
+%%{init: {"themeVariables": {"compositeTitleBackground": "#ffffff", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+stateDiagram-v2
+  direction LR
+  state Purchase {
+    state Booking {
+      state "held<br/>hold_expires_at = creation + 15 min" as B_held
+      state "confirmed" as B_confirmed
+      state "expired" as B_expired
+      state "cancelled<br/>refund 100% or 0%, plan or free 0" as B_cancelled
+      state "completed (derived, never stored)<br/>confirmed and now at or after end" as B_completed
+      [*] --> B_held: pay coverage, Continue to payment (PUR-R21)
+      [*] --> B_confirmed: plan or free, confirmed at once (PUR-R20)
+      B_held --> B_confirmed: session paid and matches, even after the hold lapsed (PUR-R25)
+      B_held --> B_expired: session unpaid and hold lapsed (PUR-R24)
+      B_held --> B_cancelled: cancel, expire returns unpaid (PUR-R31)
+      B_held --> B_cancelled: paid session does not match, amount_mismatch, full refund (PUR-R25)
+      B_confirmed --> B_cancelled: Member before start (100% at 24 h or more, else 0%), or Operator before end, 100% (PUR-R30)
+      B_confirmed --> B_completed: end passes (PUR-R28)
+    }
+  }
+  state Payment {
+    state Session {
+      state "open<br/>payment_status unpaid<br/>a decline keeps it open (PMT-R10)" as S_open
+      state "complete<br/>payment_status paid" as S_complete
+      state "expired<br/>payment_status unpaid" as S_expired
+      [*] --> S_open: POST /payment-sessions (PMT-R02)
+      S_open --> S_complete: attempt succeeded (PMT-R12)
+      S_open --> S_expired: now reaches expires_at, or POST expire (PMT-R05, PMT-R06)
+      S_complete --> [*]
+      S_expired --> [*]
+    }
+    state Refund {
+      state "succeeded" as R_succeeded
+      state "failed<br/>needs manual follow-up" as R_failed
+      [*] --> R_succeeded: POST /refunds attempt n (PMT-R14)
+      [*] --> R_failed: first refund of card 5126 (PMT-R16)
+      R_failed --> [*]: final, Operator retry is a new attempt n+1 (PUR-R33)
+      R_succeeded --> [*]
+    }
+  }
+  state Access {
+    state Grant {
+      state "issued" as G_issued
+      state "checked_in" as G_checked_in
+      state "revoked<br/>final, CANCELLED overlay" as G_revoked
+      state "not yet valid (derived)<br/>now before valid_from" as G_notyet
+      state "expired (derived)<br/>now at or after valid_until" as G_expired
+      state "no-show (derived)<br/>expired, never checked in" as G_noshow
+      [*] --> G_issued: POST /grants (AXS-R01)
+      [*] --> G_revoked: revoke unknown reference, tombstone (AXS-R02)
+      G_issued --> G_checked_in: first ok scan (AXS-R16)
+      G_issued --> G_revoked: POST revoke (AXS-R17)
+      G_checked_in --> G_revoked: POST revoke (AXS-R17)
+      G_issued --> G_notyet: read before window
+      G_issued --> G_expired: read after window
+      G_checked_in --> G_expired: read after window
+      G_expired --> G_noshow: no ok scan in the scan log
+    }
+  }
+  classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
+  classDef payment fill:#dcfce7,stroke:#15803d,color:#052e16
+  classDef access fill:#fef3c7,stroke:#b45309,color:#3b1d02
+  classDef pderived fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f,stroke-dasharray:5 5
+  classDef aderived fill:#fef3c7,stroke:#b45309,color:#3b1d02,stroke-dasharray:5 5
+  class Purchase,Booking,B_held,B_confirmed,B_expired,B_cancelled purchase
+  class B_completed pderived
+  class Payment,Session,Refund,S_open,S_complete,S_expired,R_succeeded,R_failed payment
+  class Access,Grant,G_issued,G_checked_in,G_revoked access
+  class G_notyet,G_expired,G_noshow aderived
