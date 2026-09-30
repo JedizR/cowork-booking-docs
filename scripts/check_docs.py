@@ -16,7 +16,7 @@ CONTEXTS = ("Purchase", "Payment", "Access")
 ACTORS = ("Member", "Operator", "Staff", "Browser")
 NEW_ID = re.compile(r"\b(?:PUR|PMT|AXS)-[TRQ]\d{2}\b")
 RULE_ID = re.compile(r"\b(?:PUR|PMT|AXS)-R\d{2}\b")
-CLASS_ID = re.compile(r"^[A-Z]{2,6}-[A-Z]?\d{2}$")
+CLASS_ID = re.compile(r"^(?:[A-Z]{2,6}-[A-Z]?\d{2}|Q-[A-Z]+-\d+|Q\d{2})$")
 POLICY = ("Observed", "Decided", "Stakeholder-clarified", "Superseded")
 RULE_FIELDS = ("Rule", "Policy status", "Decision source", "Implementation evidence", "Terms",
                "Candidate responsibility and dependencies", "Open question", "Clarification owner", "Next use")
