@@ -1,0 +1,40 @@
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart LR
+  Browser([Browser: Member, Operator, Staff])
+  subgraph Purchase
+    P_APP["cowork-booking-purchase<br/>Flask + gunicorn, workers=2<br/>localhost:8001 to container 8000"]
+    P_DB[("Purchase DB<br/>own postgres:16 (ADR-0003)")]
+    P_ENV["env: DATABASE_URL, SECRET_KEY, APP_REVISION, PUBLIC_URL<br/>PAYMENT_INTERNAL_URL, PAYMENT_PUBLIC_URL, PAYMENT_API_TOKEN<br/>ACCESS_INTERNAL_URL, ACCESS_PUBLIC_URL, ACCESS_API_TOKEN<br/>OPERATOR_EMAIL"]
+    P_APP -->|"psycopg, 1 connection per worker (ADR-0015)"| P_DB
+    P_ENV -.- P_APP
+  end
+  subgraph Payment
+    M_APP["cowork-booking-payment<br/>Flask + gunicorn, workers=2<br/>localhost:8002 to container 8000"]
+    M_DB[("Payment DB<br/>own postgres:16")]
+    M_ENV["env: DATABASE_URL, SECRET_KEY, APP_REVISION, PUBLIC_URL<br/>PAYMENT_API_TOKEN, OPERATOR_PASSWORD"]
+    M_APP -->|"psycopg, 1 connection per worker"| M_DB
+    M_ENV -.- M_APP
+  end
+  subgraph Access
+    A_APP["cowork-booking-access<br/>Flask + gunicorn, workers=2, segno<br/>localhost:8003 to container 8000"]
+    A_DB[("Access DB<br/>own postgres:16")]
+    A_ENV["env: DATABASE_URL, SECRET_KEY, APP_REVISION, PUBLIC_URL<br/>ACCESS_API_TOKEN, STAFF_PASSWORD"]
+    A_APP -->|"psycopg, 1 connection per worker"| A_DB
+    A_ENV -.- A_APP
+  end
+  Browser -->|"cookie purchase_session<br/>pages, /api"| P_APP
+  Browser -->|"/pay/ps_... redirect<br/>/operator HTTP Basic"| M_APP
+  Browser -->|"/t/ticket_token bearer link<br/>/checkin HTTP Basic"| A_APP
+  P_APP ==>|"HTTP/JSON, Bearer PAYMENT_API_TOKEN<br/>timeout=5, PAYMENT_INTERNAL_URL"| M_APP
+  P_APP ==>|"HTTP/JSON, Bearer ACCESS_API_TOKEN<br/>timeout=5, ACCESS_INTERNAL_URL"| A_APP
+  classDef actor fill:#ffffff,stroke:#334155,color:#0f172a
+  classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
+  classDef payment fill:#dcfce7,stroke:#15803d,color:#052e16
+  classDef access fill:#fef3c7,stroke:#b45309,color:#3b1d02
+  class Browser actor
+  class P_APP,P_DB,P_ENV purchase
+  class M_APP,M_DB,M_ENV payment
+  class A_APP,A_DB,A_ENV access
+  style Purchase fill:#dbeafe,stroke:#1d4ed8
+  style Payment fill:#dcfce7,stroke:#15803d
+  style Access fill:#fef3c7,stroke:#b45309

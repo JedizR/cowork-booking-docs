@@ -1,0 +1,39 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor OP as Operator
+  actor MB as Member B (browser)
+  actor MA as Member A (browser)
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAYX as Payment (not involved)
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  OP->>P: POST /operator/members/18/plan, no field: toggles plan_active false to true for Member B (PUR-R06)
+  P-->>OP: 303 to /operator/members, "Plan updated", Member B plan_active true
+  Note over MB,AXS: Plan coverage: Member B books Meeting Room A 2026-10-07 10:30-11:30, 2 blocks
+  MB->>P: POST /spaces/1/book date=2026-10-07, start=10:30, blocks=2, party_size=3
+  Note over P: price THB 300.00 stored, coverage plan fixed at creation (PUR-R17, PUR-R19)
+  P->>PDB: BEGIN, insert BK-3MZ8QT status confirmed (never held), COMMIT (PUR-R20)
+  P->>AXS: POST /grants {"booking_reference": "BK-3MZ8QT", "space_id": 1, ...} (PUR-R26)
+  AXS-->>P: 201 {"grant_id": "gr_...", "ticket_code": "M4TR-8WCE", "status": "issued"} (AXS-R01)
+  P-->>MB: 303 to /bookings/BK-3MZ8QT: "Confirmed. Covered by your plan. No payment was taken."
+  Note over P,PAYX: No Payment call. Covered is not always money collected: a plan booking is never paid (PUR-R20)
+  Note over MA,AXS: Free coverage: Member A books Community Table (space_id 4, THB 0/h) 2026-10-07 14:00-15:00
+  MA->>P: POST /api/bookings {"space_id": 4, "start": "2026-10-07T14:00:00+07:00", "blocks": 2, "party_size": 5}
+  Note over P: price 0, coverage free (PUR-R19)
+  P->>PDB: BEGIN, insert BK-Q5ZD2K status confirmed, COMMIT (PUR-R20)
+  P->>AXS: POST /grants {"booking_reference": "BK-Q5ZD2K", "space_id": 4, ...}
+  AXS-->>P: 201 {"ticket_code": "9FKB-3DQP", "status": "issued"}
+  P-->>MA: 201 {"reference": "BK-Q5ZD2K", "status": "confirmed", "coverage": "free", "agreed_price_satang": 0, "payment_url": null}
+  opt Access unreachable at issuance
+    P->>AXS: POST /grants
+    AXS--xP: no answer (timeout=5)
+    Note over P: Booking stays confirmed, grant_status pending, e-ticket "being prepared",<br/>retried on the booking page or by the Operator's Retry (PUR-R26)
+  end
+  Note over OP,P: Turning plan_active off later never changes BK-3MZ8QT (PUR-R19)

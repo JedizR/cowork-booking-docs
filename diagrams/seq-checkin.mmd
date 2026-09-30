@@ -1,0 +1,55 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor S as Staff (kiosk browser)
+  box rgb(219,234,254) Purchase
+    participant PURX as Purchase (not involved)
+  end
+  box rgb(220,252,231) Payment
+    participant PAYX as Payment (not involved)
+  end
+  box rgb(254,243,199) Access
+    participant K as Access kiosk :8003
+    participant ADB as Access DB
+  end
+  Note over S,ADB: Grant for BK-7KQ2M9: Meeting Room A (space_id 1), code H7K3-9QXA, window [2026-10-07 09:00, 10:30)
+  S->>K: GET /checkin (HTTP Basic, user staff, STAFF_PASSWORD)
+  K-->>S: 200 room list from space_id and space_name in stored grants, autofocused code input (AXS-R11)
+  S->>K: POST /checkin space_id=1 (no code: select Meeting Room A)
+  K-->>S: 303 to /checkin, room 1 stored in the access_session cookie (AXS-R11, AXS-R18)
+  Note over S,K: Each scan below is a POST with code only. The room comes from access_session.<br/>A space_id sent with a code is ignored, so a cross-site form cannot pick the room (AXS-R11)
+  Note over K: Every scan: normalise (upper-case, strip spaces and hyphens, AXS-R12),<br/>then decide in order unknown_code, revoked, wrong_room, window (AXS-R14, AXS-R13)
+  alt 2026-10-07 08:50, room 1, code "h7k3 9qxa"
+    S->>K: POST /checkin code=h7k3 9qxa
+    K->>ADB: store scan H7K39QXA, result not_open_yet (AXS-R15)
+    K-->>S: 303 to /checkin, data-result="not_open_yet" "opens 09:00"
+  else 09:05, room 1, code H7K3-9QXA
+    S->>K: POST /checkin code=H7K3-9QXA
+    K->>ADB: store scan ok, grant issued to checked_in (first ok scan, AXS-R16)
+    K-->>S: 303 to /checkin, data-result="ok" "Door unlocked (mock)"
+    Note over K: The lock is mocked: ok and checked_in never prove a door opened (ADR-0017)
+  else 10:10, room 1, same code again (re-entry)
+    S->>K: POST /checkin code=H7K3-9QXA
+    K-->>S: 303 to /checkin, data-result="ok" (re-entry inside the window, AXS-R13)
+  else 10:30, room 1, code H7K3-9QXA
+    S->>K: POST /checkin code=H7K3-9QXA
+    K-->>S: 303 to /checkin, data-result="closed" "Check-in closed at 10:30" (end is exclusive)
+  else 09:10, Staff moves the kiosk to room 2 (Focus Pod 1)
+    S->>K: POST /checkin space_id=2 (no code: select Focus Pod 1)
+    K-->>S: 303 to /checkin, room 2 stored in access_session
+    S->>K: POST /checkin code=H7K3-9QXA
+    K-->>S: 303 to /checkin, data-result="wrong_room" "This ticket is for Meeting Room A"
+  else 09:10, room 1, code of a cancelled booking (grant revoked)
+    S->>K: POST /checkin code=H7K3-9QXA
+    K-->>S: 303 to /checkin, data-result="revoked" "This ticket was cancelled"
+  else 09:10, room 1, booking reference BK-7KQ2M9 typed in
+    S->>K: POST /checkin code=BK-7KQ2M9
+    Note over K: normalised BK7KQ2M9, no ticket code starts with BK (AXS-R06, AXS-R08)
+    K-->>S: 303 to /checkin, data-result="unknown_code" "Code not recognised"
+  else 09:10, no room in access_session (new browser, or a cross-site form)
+    S->>K: POST /checkin space_id=1, code=H7K3-9QXA
+    K-->>S: 303 to /checkin, flash "Select the room first", no scan stored (AXS-R11)
+  end
+  S->>K: GET /checkin
+  K-->>S: 200 last 10 scans at room 1, newest first, masked ••••-9QXA (AXS-R15)
+  Note over PURX,K: Access never calls Purchase or Payment. Purchase sent the window at issuance (AXS-R04, PUR-R27)

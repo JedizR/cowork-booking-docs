@@ -1,0 +1,45 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor B as Member A (browser)
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXS as Access :8003
+  end
+  Note over B,AXS: Clock 2026-10-05 10:00 Bangkok. Meeting Room A (space_id 1), THB 300/h.
+  B->>P: GET /spaces/1?date=2026-10-07&blocks=3
+  P->>PDB: read slot-blocking bookings of space 1 (PUR-R12)
+  P-->>B: 200 grid, start=09:00 enabled (PUR-R13)
+  B->>P: POST /spaces/1/book date=2026-10-07, start=09:00, blocks=3, party_size=4, note
+  Note over P: Checks in order: input 400, one held booking 409, slot 409 (PUR-R39)<br/>agreed_price_satang 45000 = THB 450.00, coverage pay (PUR-R17, PUR-R19)
+  P->>PDB: sweep stale holds of space 1 in their own short steps (PUR-R22)
+  P->>PDB: BEGIN, insert held BK-7KQ2M9, hold_expires_at 10:15, COMMIT (PUR-R21, PUR-R29)
+  P->>PAY: POST /payment-sessions, Bearer PAYMENT_API_TOKEN, timeout=5 (PUR-R35)
+  Note over P,PAY: {"booking_reference": "BK-7KQ2M9", "amount_satang": 45000, "currency": "THB",<br/>"success_url": ".../bookings/BK-7KQ2M9/return", "cancel_url": ".../bookings/BK-7KQ2M9",<br/>"expires_at": "2026-10-05T10:13:00+07:00"} (PUR-R23, PMT-R02)
+  PAY-->>P: 201 {"id": "ps_...", "url": ".../pay/ps_...", "status": "open", "payment_status": "unpaid"}
+  P->>PDB: store payment_session_id ps_...
+  P-->>B: 303 to PAYMENT_PUBLIC_URL/pay/ps_...
+  B->>PAY: GET /pay/ps_...
+  PAY-->>B: 200 THB 450.00, BK-7KQ2M9, "Pay by 10:13", test-mode banner (PMT-R07)
+  B->>PAY: POST /pay/ps_... card_number=4242424242424242, expiry=12/28, cvc=123
+  Note over PAY: One transaction, session row FOR UPDATE (PMT-R12)<br/>attempt pa_... succeeded, store visa 4242 only (PMT-R09, PMT-R13)<br/>session complete, payment_status paid (PMT-R10)
+  PAY-->>B: 303 to success_url?session_id=ps_...
+  B->>P: GET /bookings/BK-7KQ2M9/return?session_id=ps_...
+  P->>PAY: GET /payment-sessions/ps_... (reconcile, PUR-R24)
+  PAY-->>P: 200 {"status": "complete", "payment_status": "paid", "amount_satang": 45000, "currency": "THB"}
+  P->>PDB: BEGIN, reference, amount, currency match, status confirmed, COMMIT (PUR-R25, PUR-R28)
+  P->>AXS: POST /grants, Bearer ACCESS_API_TOKEN, timeout=5 (PUR-R26)
+  Note over P,AXS: {"booking_reference": "BK-7KQ2M9", "member_ref": "...", "space_id": 1, "space_name": "Meeting Room A",<br/>"valid_from": "2026-10-07T09:00:00+07:00", "valid_until": "2026-10-07T10:30:00+07:00"} (PUR-R27, AXS-R03)
+  AXS-->>P: 201 {"grant_id": "gr_...", "ticket_code": "H7K3-9QXA", "ticket_url": ".../t/<ticket_token>", "status": "issued"} (AXS-R01)
+  P->>PDB: grant_status issued, grant_id, ticket_url
+  P-->>B: 303 to /bookings/BK-7KQ2M9
+  B->>P: GET /bookings/BK-7KQ2M9
+  P-->>B: 200 confirmed, 2026-10-07 09:00-10:30, THB 450.00, paid, "View e-ticket"
+  B->>AXS: GET /t/<ticket_token> (bearer link, AXS-R09)
+  AXS-->>B: 200 data-ticket-code="H7K3-9QXA", data-status="issued", QR of the same code (AXS-R07)

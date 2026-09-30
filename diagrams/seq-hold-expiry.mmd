@@ -1,0 +1,37 @@
+%%{init: {"themeVariables": {"actorBkg": "#ffffff", "actorBorder": "#334155", "noteBkgColor": "#f8fafc", "noteBorderColor": "#94a3b8"}}}%%
+sequenceDiagram
+  autonumber
+  actor A as Member A (browser)
+  actor C as Member C (browser)
+  box rgb(219,234,254) Purchase
+    participant P as Purchase :8001
+    participant PDB as Purchase DB
+  end
+  box rgb(220,252,231) Payment
+    participant PAY as Payment :8002
+  end
+  box rgb(254,243,199) Access
+    participant AXSX as Access (not involved)
+  end
+  Note over A,PAY: 10:00 BK-7KQ2M9 held until 10:15, session ps_... expires_at 10:13 (PUR-R21, PUR-R23)
+  A->>PAY: GET /pay/ps_... then leaves the tab open
+  Note over A,PAY: 10:14
+  A->>PAY: POST /pay/ps_... card_number=4242424242424242, expiry=12/28, cvc=123
+  PAY-->>A: 409 page "This payment session has expired.", no attempt stored, nothing charged (PMT-R11, PMT-R05)
+  A->>P: POST /spaces/1/book same space and time ("Continue to payment")
+  P-->>A: 303 to /bookings/BK-7KQ2M9, flash "Time to pay has run out#59; you can book again after 10:15" (PUR-R40)
+  Note over P: No session request, no redirect. Until 10:15 the hold still blocks the slot (PUR-R12)
+  Note over C,PAY: 10:16, the hold has lapsed
+  C->>P: GET /spaces/1?date=2026-10-07&blocks=3
+  P->>PDB: slot-blocking read with :now = clock.now() 10:16 (PUR-R12)
+  P-->>C: 200 grid, start=09:00 enabled: the lapsed hold no longer blocks (PUR-R13)
+  C->>P: POST /spaces/1/book date=2026-10-07, start=09:00, blocks=3, party_size=2
+  Note over P: Pre-insert sweep of stale holds in space 1 (PUR-R22)
+  P->>PAY: GET /payment-sessions/ps_... (PUR-R24)
+  PAY-->>P: 200 {"status": "expired", "payment_status": "unpaid"}
+  P->>PDB: BK-7KQ2M9 held to expired (unpaid, hold lapsed) (PUR-R24, PUR-R28)
+  P->>PDB: BEGIN, insert Member C's held booking, COMMIT (PUR-R22)
+  P->>PAY: POST /payment-sessions for Member C's booking (PUR-R23)
+  PAY-->>P: 201 {"id": "ps_...", "url": ".../pay/ps_..."}
+  P-->>C: 303 to PAYMENT_PUBLIC_URL/pay/ps_...
+  Note over A,P: Member A's booking page now shows expired. The row stays, nothing is deleted (PUR-R28)
