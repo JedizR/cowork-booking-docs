@@ -1,0 +1,20 @@
+flowchart LR
+  Member([Member])
+  subgraph Purchase
+    P[Purchase service<br/>members, spaces, bookings, price, coverage]
+  end
+  subgraph Payment
+    PM[Payment service<br/>sessions, attempts, refunds]
+  end
+  subgraph Access
+    A[Access service<br/>grants, ticket codes, check-in]
+  end
+  Member --> P
+  P -- "collect this agreed amount" --> PM
+  P -- "issue an authorised grant" --> A
+  classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
+  classDef payment fill:#dcfce7,stroke:#15803d,color:#052e16
+  classDef access fill:#fef3c7,stroke:#b45309,color:#3b1d02
+  class P purchase
+  class PM payment
+  class A access
