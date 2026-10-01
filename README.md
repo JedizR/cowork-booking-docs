@@ -10,6 +10,43 @@ Business rules, glossary, product and architecture docs for Cowork Booking, a co
 
 This repo is the single home for rules and decisions. Service contracts live beside each provider's code.
 
+## Run the whole system on your machine
+
+Needs Docker. The four repos sit side by side in one folder (this repo builds the three services from its sibling folders).
+
+```bash
+git clone git@github.com:JedizR/cowork-booking-docs.git
+git clone git@github.com:JedizR/cowork-booking-purchase.git
+git clone git@github.com:JedizR/cowork-booking-payment.git
+git clone git@github.com:JedizR/cowork-booking-access.git
+cd cowork-booking-docs/integration
+docker compose -f compose.yaml up -d --build --wait
+```
+
+| What | URL | Sign-in |
+|---|---|---|
+| Purchase: spaces, booking, My bookings, operator pages | http://localhost:8001 | Sign up as a Member; `operator@example.com` becomes the Operator on sign-up |
+| Payment: hosted checkout `/pay/<id>`, operator totals `/operator` | http://localhost:8002 | `/operator`: HTTP Basic `operator` / `OPERATOR_PASSWORD` (dev default `dev-operator-password`) |
+| Access: e-tickets `/t/<token>`, kiosk `/checkin` | http://localhost:8003 | `/checkin`: HTTP Basic `staff` / `STAFF_PASSWORD` (dev default `dev-staff-password`) |
+
+Test cards on the hosted page (any future expiry, any CVC): `4242424242424242` succeeds, `4000000000000002` declines, `4000000000005126` succeeds but its first refund fails. The door lock is mocked: an `ok` at the kiosk means the scan was accepted, not that a door opened (ADR-0017).
+
+Stop with `docker compose -f compose.yaml down` (add `-v` to wipe the data). The e2e suite and its test clock are described in [integration/README.md](integration/README.md).
+
+## Documents
+
+| Read this | For |
+|---|---|
+| [PRD.md](PRD.md) | Problem, roles, stories and acceptance criteria, UX flows |
+| [RULES.md](RULES.md), [GLOSSARY.md](GLOSSARY.md) | Business rules and terms by context |
+| [DECISIONS.md](DECISIONS.md), [adr/](adr/README.md) | D1-D28 and the architecture decisions |
+| [ARCHITECTURE.md](ARCHITECTURE.md), [diagrams/](diagrams/) | Services, data ownership, calls, sequences |
+| [BUSINESS_MODEL.md](BUSINESS_MODEL.md) | Commission model, metrics, three services vs a monolith |
+| [contracts/README.md](contracts/README.md) | The three contracts (verified), held beside each provider |
+| [TRACEABILITY.md](TRACEABILITY.md) | Every rule to its passing tests or manual check |
+| [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), [REVIEW_LOG.md](REVIEW_LOG.md), [ID_MAP.md](ID_MAP.md) | Open questions with defaults, review rounds, class-ID mapping |
+| [SOURCES.md](SOURCES.md), [inventory/](inventory/README.md) | Where everything came from |
+
 ## Checks
 
 ```bash
