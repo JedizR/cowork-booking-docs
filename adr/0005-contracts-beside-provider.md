@@ -17,7 +17,7 @@ The seed has one `openapi.yaml` (732 lines, 18 operations, OpenAPI 3.0.3) for th
 - Keep one authoritative copy of each contract, in the provider's repo:
   - purchase→payment: `CONTRACT.md` and `openapi.yaml` in `cowork-booking-payment`.
   - purchase→access: `CONTRACT.md` and `openapi.yaml` in `cowork-booking-access`.
-  - Purchase's own browser and JSON API: `openapi.yaml` in `cowork-booking-purchase`.
+  - Purchase's own browser and JSON API: `CONTRACT.md` and `openapi.yaml` in `cowork-booking-purchase` (an addition to the brief's layout, which names `CONTRACT.md` for Payment and Access only).
 - Keep links only in the docs repo: `contracts/README.md`, one row per contract. The M2 drafts sit in the docs repo until M4 moves them; after the move the docs repo holds no copy.
 - Write promises and examples, and link rule IDs. Meaning stays in RULES.md. Every contract has the five course examples: success, invalid input, failure, repeat, coverage skips collection.
 - Move a contract through three states, and let nothing else change a state:

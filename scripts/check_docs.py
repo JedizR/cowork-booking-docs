@@ -279,11 +279,23 @@ def check_prd(statuses):
     if text is None:
         return 0
     acs = 0
+    cover = {}  # rule -> stories whose criteria cite it
     for i, line in enumerate(text.splitlines(), 1):
         if re.match(r"\s*[-*]\s+\**AC\d+(\.\d+)?\b", line):
             acs += 1
             if not RULE_ID.search(line):
                 err(f"PRD.md:{i}", "acceptance criterion cites no rule ID")
+            story = int(re.search(r"AC(\d+)", line).group(1))
+            for ident in RULE_ID.findall(line):
+                cover.setdefault(ident, set()).add(story)
+    # The rule coverage table (section 4.4) must match the criteria's citations.
+    for i, line in enumerate(text.splitlines(), 1):
+        m = re.match(r"\|\s*((?:PUR|PMT|AXS)-R\d{2})\s[^|]*\|([^|]*)\|\s*$", line)
+        if m:
+            listed = {int(n) for n in re.findall(r"US(\d+)", m.group(2))}
+            if listed != cover.get(m.group(1), set()):
+                want = ", ".join(f"US{n}" for n in sorted(cover.get(m.group(1), set())))
+                err(f"PRD.md:{i}", f"coverage row {m.group(1)} should list {want or 'no story'}")
     cited = set(RULE_ID.findall(text))
     for ident in statuses:
         if ident not in cited:

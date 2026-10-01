@@ -39,14 +39,14 @@ Three services against modules in one monolith:
 
 ## Consequences
 
-- Good: each rule has one home. Payment cannot re-price (PMT-R04). Revoking a grant never refunds (AXS-R17). Coverage never looks like money (PUR-R19).
-- Good: each service ships and rolls back alone, which the course grades ("Service delivered, independently deployable" [syllabus site]).
-- Bad: failure modes a monolith never has. A grant can be "being prepared" (PUR-R26), a revoke or refund can be pending (PUR-R32), and a cancel can get 503 while Payment is down (PUR-R31).
+- Good, from the context boundaries (modules in one monolith would give the same): each rule has one home. Payment cannot re-price (PMT-R04). Revoking a grant never refunds (AXS-R17). Coverage never looks like money (PUR-R19). The seed flaws came from one shared booking row, not from being one deployable.
+- Good, from the split alone: each service ships and rolls back alone, which the course grades ("Service delivered, independently deployable" [syllabus site]); card data stays inside Payment's process and database (ADR-0020).
+- Bad: failure modes a monolith never has. A grant can be "being prepared" (PUR-R26), a revoke or refund can be pending (PUR-R32), and a cancel can get 503 while Payment is down (PUR-R31). The paid journey needs Purchase and Payment both up. A pending revoke leaves the old code opening while the slot is rebooked (PUR-Q12), a risk that exists only because of the split.
 - Bad: more code: two HTTP clients, two contracts, an e2e stack, three copies of the shared look. For a v1 business this size, modules in one monolith would be simpler. We split because the course exercise is the split.
 
 ## Alternatives considered
 
-- **Modules in one monolith** ("Separate ownership, still one monolith" [extraction site]). Cheapest, one transaction. Not chosen: the exercise and the grading ask for three independently deployable services. It stays the fallback: `payment_client.py` and `access_client.py` are the only seams, so merging back is a local change.
+- **Modules in one monolith** ("Separate ownership, still one monolith" [extraction site]). Cheapest, one transaction. Not chosen: the exercise and the grading ask for three independently deployable services. It stays the fallback, but not a cheap one: merging back needs a data migration of three databases into one and one auth scheme in place of three cookies, two tokens and two Basic passwords, and the Payment and Access pages move into one app. The code seams are `payment_client.py` and `access_client.py`.
 - **Two services** (Access inside Purchase). The credential rules (AXS-R05, AXS-R14) would sit beside booking code again, as in the seed.
 - **Four contexts with Identity.** See ADR-0002.
 

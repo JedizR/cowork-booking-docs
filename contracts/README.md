@@ -24,7 +24,7 @@ In M4 each contract moves beside its provider's code, as one authoritative copy 
 
 - `cowork-booking-payment/CONTRACT.md` and `openapi.yaml`: purchase-payment.
 - `cowork-booking-access/CONTRACT.md` and `openapi.yaml`: purchase-access.
-- `cowork-booking-purchase/openapi.yaml` and its public contract: purchase-public.
+- `cowork-booking-purchase/CONTRACT.md` and `openapi.yaml`: purchase-public. The brief's layout names `CONTRACT.md` for Payment and Access only; Purchase gets one too, so its public contract text has a single home.
 
 After the move, this index keeps links only. The Link column then points at the provider repo, and the drafts in this folder are deleted.
 

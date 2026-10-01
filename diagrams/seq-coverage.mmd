@@ -14,12 +14,12 @@ sequenceDiagram
   box rgb(254,243,199) Access
     participant AXS as Access :8003
   end
-  OP->>P: POST /operator/members/18/plan, no field: toggles plan_active false to true for Member B (PUR-R06)
-  P-->>OP: 303 to /operator/members, "Plan updated", Member B plan_active true
+  OP->>P: POST /operator/members/18/plan plan_active=true (the button sends the target value, PUR-R06)
+  P-->>OP: 303 to /operator/members, "Plan on for b@example.com", Member B plan_active true
   Note over MB,AXS: Plan coverage: Member B books Meeting Room A 2026-10-07 10:30-11:30, 2 blocks
-  MB->>P: POST /spaces/1/book date=2026-10-07, start=10:30, blocks=2, party_size=3
+  MB->>P: POST /spaces/1/book date=2026-10-07, start=10:30, blocks=2, party_size=2
   Note over P: price THB 300.00 stored, coverage plan fixed at creation (PUR-R17, PUR-R19)
-  P->>PDB: BEGIN, insert BK-3MZ8QT status confirmed (never held), COMMIT (PUR-R20)
+  P->>PDB: BEGIN, insert BK-3MZ8QT status confirmed (never held), grant_status pending, COMMIT (PUR-R20, PUR-R26)
   P->>AXS: POST /grants {"booking_reference": "BK-3MZ8QT", "space_id": 1, ...} (PUR-R26)
   AXS-->>P: 201 {"grant_id": "gr_...", "ticket_code": "M4TR-8WCE", "status": "issued"} (AXS-R01)
   P-->>MB: 303 to /bookings/BK-3MZ8QT: "Confirmed. Covered by your plan. No payment was taken."
@@ -34,6 +34,6 @@ sequenceDiagram
   opt Access unreachable at issuance
     P->>AXS: POST /grants
     AXS--xP: no answer (timeout=5)
-    Note over P: Booking stays confirmed, grant_status pending, e-ticket "being prepared",<br/>retried on the booking page or by the Operator's Retry (PUR-R26)
+    Note over P: Booking stays confirmed, grant_status pending, e-ticket "being prepared",<br/>retried on the booking page (or GET /api/bookings/ref), by the owner's Retry or by the Operator's Retry (PUR-R26)
   end
   Note over OP,P: Turning plan_active off later never changes BK-3MZ8QT (PUR-R19)

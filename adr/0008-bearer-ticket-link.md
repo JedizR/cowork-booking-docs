@@ -6,7 +6,7 @@ Accepted, 2026-10-01
 
 ## Context
 
-Example: BK-7KQ2M9 is confirmed, and Access returns a ticket_url of the form `<ACCESS_PUBLIC_URL>/t/<ticket_token>`. Member A presses "View e-ticket" and sees Meeting Room A, 2026-10-07 09:00-10:30, and the code H7K3-9QXA with its QR. Member A forwards the link to a colleague. At 09:05 the colleague shows the QR at the Meeting Room A kiosk: ok. Anyone holding the link can do the same.
+Example: BK-7KQ2M9 is confirmed, and Access returns a ticket_url of the form `<Access PUBLIC_URL>/t/<ticket_token>`. Member A presses "View e-ticket" and sees Meeting Room A, 2026-10-07 09:00-10:30, and the code H7K3-9QXA with its QR. Member A forwards the link to a colleague. At 09:05 the colleague shows the QR at the Meeting Room A kiosk: ok. Anyone holding the link can do the same.
 
 - The product model is a cinema e-ticket: the link or printout is the ticket, and whoever holds it gets in.
 - Access holds no accounts (ADR-0002) and calls no one (ADR-0004), so it cannot check a Purchase login.
@@ -15,7 +15,7 @@ Example: BK-7KQ2M9 is confirmed, and Access returns a ticket_url of the form `<A
 
 ## Decision
 
-- Give each grant a random 128-bit ticket token from Python's `secrets`, unique. ticket_url = ACCESS_PUBLIC_URL + `/t/<ticket_token>`.
+- Give each grant a random 128-bit ticket token from Python's `secrets`, unique. ticket_url = Access PUBLIC_URL + `/t/<ticket_token>`. Purchase stores it only when it starts with its own ACCESS_PUBLIC_URL + `/t/`, so a wrong Access setting cannot send the bearer link to another host or over plain http (PUR-R26).
 - Make the link view-only. GET /t/<ticket_token> shows the stored ticket code, its QR, the space, the Bangkok date and time, the check-in window and the status. It has no action and shows no email and no member_ref. An unknown token gets 404.
 - Send `Referrer-Policy: no-referrer` on the e-ticket.
 - Show only stored values, never text from the URL.
@@ -31,12 +31,13 @@ Example: BK-7KQ2M9 is confirmed, and Access returns a ticket_url of the form `<A
 - Bad: forwarding the link forwards entry for the booking's window.
 - Bad: a leaked link (shared screen, browser history, a proxy log) leaks entry. The /t/ path also appears in Access's own access log, at the same trust level as its database.
 - Bad: the link cannot be rotated without revoking the grant (AXS-Q05).
+- Bad: Purchase's bookings table holds every ticket link, so a leak of Purchase's database or of a log that printed a ticket_url leaks entry too.
 
 ## Alternatives considered
 
 - **Member login on Access.** Rejected: Access would need accounts or an Identity service (ADR-0002).
 - **A short-lived link signed by Purchase.** Rejected: a shared signing secret, or a call from Access back to Purchase (ADR-0004).
-- **Show the ticket only inside Purchase.** Rejected: Purchase would store or proxy the credential, which Access owns ("Owns grants and issuance" [extraction site]).
+- **Show the ticket only inside Purchase.** Rejected: Purchase would render the code itself, which Access owns ("Owns grants and issuance" [extraction site]). Purchase keeps only the link: it stores ticket_url, never the ticket_code from the grant answer, and logs neither (PUR-R26).
 - **Email the ticket.** No email in v1 (AXS-Q03).
 
 ## Rules and decisions

@@ -20,7 +20,7 @@ flowchart LR
   Member -->|"book, cancel"| P
   Member -->|"pay by card"| PAY_H
   Member -->|"open e-ticket"| AXS_T
-  Operator -->|"spaces, cancel, retry, reconcile, plan"| P
+  Operator -->|"spaces, cancel, retry, reconcile, plan, dashboard"| P
   Operator -->|"money totals, failed refunds"| PAY
   Staff -->|"scan ticket code"| AXS_T
   P ==>|"Collect this agreed amount<br/>Purchase interprets the result"| PAY

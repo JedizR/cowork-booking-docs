@@ -15,9 +15,9 @@ sequenceDiagram
   Note over B,AXS: Clock 2026-10-05 10:00 Bangkok. Meeting Room A (space_id 1), THB 300/h.
   B->>P: GET /spaces/1?date=2026-10-07&blocks=3
   P->>PDB: read slot-blocking bookings of space 1 (PUR-R12)
-  P-->>B: 200 grid, start=09:00 enabled (PUR-R13)
-  B->>P: POST /spaces/1/book date=2026-10-07, start=09:00, blocks=3, party_size=4, note
-  Note over P: Checks in order: input 400, one held booking 409, slot 409 (PUR-R39)<br/>agreed_price_satang 45000 = THB 450.00, coverage pay (PUR-R17, PUR-R19)
+  P-->>B: 200 grid, radio start=09:00 enabled, review "Meeting Room A, 2026-10-07, 1 h 30 min: THB 450.00"<br/>and the cancellation terms (PUR-R13, PUR-R30)
+  B->>P: Pick 09:00, fill party size and note, press "Continue to payment":<br/>POST /spaces/1/book date=2026-10-07, start=09:00, blocks=3, party_size=4, note
+  Note over P: Checks in order (PUR-R39): (1) shape 400 (offset, :00 or :30, 1-8 blocks, opening hours)<br/>(2) own lapsed holds reconciled, then own match: same slot held resumes the hold<br/>(from the deadline 409 payment_time_over), same slot confirmed answers "You already booked this slot" (PUR-R21)<br/>(3) notice, horizon, party size 400 (4) another held booking 409 (5) sweep, insert, slot 409 (PUR-R22)<br/>agreed_price_satang 45000 = THB 450.00, coverage pay (PUR-R17, PUR-R19)
   P->>PDB: sweep stale holds of space 1 in their own short steps (PUR-R22)
   P->>PDB: BEGIN, insert held BK-7KQ2M9, hold_expires_at 10:15, COMMIT (PUR-R21, PUR-R29)
   P->>PAY: POST /payment-sessions, Bearer PAYMENT_API_TOKEN, timeout=5 (PUR-R35)

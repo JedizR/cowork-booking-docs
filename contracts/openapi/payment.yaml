@@ -9,6 +9,8 @@ info:
     Natural keys instead of an Idempotency-Key header: booking_reference for a
     session, (payment_session_id, attempt) for a refund.
     Errors: {"error": {"code": "...", "message": "..."}}.
+    The hosted page's card form body carries no schema constraints on purpose: an invalid or
+    missing field answers 303 to /pay/<id> with the flash, never 400.
 servers:
   - url: http://payment:8000
     description: Internal URL used by Purchase (PAYMENT_INTERNAL_URL)
@@ -230,9 +232,13 @@ paths:
       security: []
       summary: Hosted mock checkout page (no login, no token)
       description: |
-        open: amount, reference, description, countdown, test-mode banner, card form, Pay, Back.
+        open: amount, reference, description, countdown ("Pay by 10:13 (N min left)" with
+        data-seconds-left from clock.now(); the script never reads the browser clock), test-mode
+        banner, card form, Pay, Back.
         complete: "Paid" and a link to success_url?session_id=<id>.
-        expired: "This payment session has expired." and Back. Rules PMT-R07, PMT-R05.
+        expired: "This payment session has expired. Nothing was charged." and "Back to your booking".
+        After a decline, the flashed reason inside an element data-decline-code="<code>".
+        Rules PMT-R07, PMT-R05, PMT-R10.
       parameters:
         - $ref: '#/components/parameters/SessionId'
       responses:
@@ -254,10 +260,14 @@ paths:
       security: []
       summary: Submit the card form
       description: |
-        Success 303 to success_url?session_id=<id>. Decline 200 re-render with an element
-        data-decline-code="<code>". Card fields failing the check 200 re-render with the
-        message and no attempt. At or after expires_at 409 page "This payment session has expired."
-        Already complete 303 to success_url with no attempt. Only brand and last4 are stored.
+        Order of checks: unknown id 404; complete 303 to success_url with no attempt; expired or
+        at or after expires_at 409; card fields 303 to /pay/<id> with the flashed message ("Card
+        number must be 13 to 19 digits", "CVC must be 3 or 4 digits", "Expiry must be MM/YY",
+        "The expiry date has passed") and no attempt; then the attempt. Success 303 to
+        success_url?session_id=<id>. Decline 303 to /pay/<id>; the attempt is stored and the GET
+        shows the flashed reason inside data-decline-code="<code>". The 409 renders the expired
+        page: "This payment session has expired. Nothing was charged." and "Back to your booking".
+        Only brand and last4 are stored.
         Rules PMT-R08, PMT-R09, PMT-R10, PMT-R11, PMT-R12, PMT-R13.
       parameters:
         - $ref: '#/components/parameters/SessionId'
@@ -267,36 +277,29 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               type: object
-              required: [card_number, expiry, cvc]
               properties:
                 card_number:
                   type: string
-                  description: 13 to 19 digits after spaces are removed
+                  description: 13 to 19 digits after spaces are removed, else "Card number must be 13 to 19 digits"
                   example: '4242424242424242'
                 expiry:
                   type: string
-                  pattern: '^\d{2}/\d{2}$'
-                  description: MM/YY, not before the current Bangkok month
+                  description: MM/YY with MM 01 to 12, else "Expiry must be MM/YY"; not before the current Bangkok month, else "The expiry date has passed"
                   example: 12/28
                 cvc:
                   type: string
-                  pattern: '^\d{3,4}$'
+                  description: 3 or 4 digits, else "CVC must be 3 or 4 digits"
                   example: '123'
       responses:
         '303':
-          description: Success, or the session was already complete
+          description: |
+            Success or already complete: Location success_url?session_id=<id>.
+            Decline or card-format error: Location /pay/<id>, the reason flashed; the session stays open.
           headers:
             Location:
               schema:
                 type: string
               example: http://localhost:8001/bookings/BK-7KQ2M9/return?session_id=ps_Q7mZ3xK9vT2bN8rL4wYc1A
-        '200':
-          description: Decline (element data-decline-code) or a card-format message; the session stays open
-          content:
-            text/html:
-              schema:
-                type: string
-              example: '<p data-decline-code="generic_decline">Your card was declined.</p>'
         '404':
           description: Unknown session
           content:
@@ -309,13 +312,25 @@ paths:
             text/html:
               schema:
                 type: string
-              example: '<p>This payment session has expired.</p>'
+              example: '<p>This payment session has expired. Nothing was charged.</p><a href="http://localhost:8001/bookings/BK-7KQ2M9">Back to your booking</a>'
   /operator:
     get:
       tags: [operator]
       operationId: operatorPage
       summary: Sessions, attempts, refunds, totals and "needs manual follow-up"
-      description: HTTP Basic, user "operator", password OPERATOR_PASSWORD. Rule PMT-R17.
+      description: |
+        HTTP Basic, user "operator", password OPERATOR_PASSWORD. Rule PMT-R17.
+        Sessions (booking_reference, amount, status, paid_at), attempts (booking_reference, brand,
+        last4, result, decline code, attempted_at), refunds (booking_reference, attempt, amount,
+        reason, status, created_at), all-time totals. Order: sessions newest paid_at first, then
+        unpaid sessions newest created first; attempts newest attempted_at first; refunds newest
+        created_at first. paid_at, attempted_at and created_at are
+        business times written from clock.now(), never a database default.
+        Markers: data-session-id and data-booking-reference on every session, attempt and refund
+        row; data-attempt-result (and data-decline-code on a declined row); data-refund-attempt,
+        data-refund-status; data-follow-up="<booking_reference>" with "needs manual follow-up.
+        Retry it from Purchase: All bookings" while a failed refund needs follow-up;
+        data-collected-satang, data-refunded-satang, data-net-satang, data-commission-satang.
       security:
         - basicAuth: []
       responses:
@@ -363,7 +378,7 @@ paths:
       operationId: setTestClock
       security: []
       summary: Set or clear the test clock (404 unless TEST_CLOCK_ENABLED=true)
-      description: Rule PMT-R20. Never enabled in the Dockerfile or .env.example.
+      description: Rule PMT-R20. Never enabled in the Dockerfile, the service compose.yaml or .env.example; only integration/compose.e2e.yaml sets it. The override is a fixed instant that never advances.
       requestBody:
         required: true
         content:
@@ -386,8 +401,14 @@ paths:
                 $ref: '#/components/schemas/Clock'
               example:
                 now: '2026-10-05T10:13:00+07:00'
+        '400':
+          description: A now that is not ISO 8601 with an offset; nothing stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: TEST_CLOCK_ENABLED is not exactly "true"; nothing stored
+          description: TEST_CLOCK_ENABLED is not exactly "true"; nothing stored. With the flag off, clock.now() never reads test_clock
 components:
   securitySchemes:
     bearerAuth:
@@ -403,9 +424,9 @@ components:
       name: id
       in: path
       required: true
+      description: A session id; any other value gets 404, never 400 (the pattern is on the Session schema)
       schema:
         type: string
-        pattern: '^ps_[A-Za-z0-9_-]{22}$'
       example: ps_Q7mZ3xK9vT2bN8rL4wYc1A
   responses:
     InvalidRequest:
@@ -505,7 +526,8 @@ components:
       properties:
         id:
           type: string
-          pattern: '^ps_'
+          pattern: '^ps_[A-Za-z0-9_-]{22}$'
+          description: ps_ + secrets.token_urlsafe(16), 128 random bits (PMT-R02)
         url:
           type: string
           format: uri

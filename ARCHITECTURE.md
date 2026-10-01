@@ -25,7 +25,7 @@ Example: at 2026-10-05 10:00 Member A books Meeting Room A for 2026-10-07 09:00-
 
 - Every app container listens on 8000; compose maps it to 8001, 8002 or 8003.
 - Each service repo is seeded by copy-and-prune from the seed at 5a1cf3d, straight to three repos (ADR-0006).
-- Each contract has one authoritative copy beside its provider's code: Payment holds purchase-payment, Access holds purchase-access, Purchase holds its own `openapi.yaml`. The docs repo keeps links only (ADR-0005).
+- Each contract has one authoritative copy beside its provider's code: Payment holds purchase-payment, Access holds purchase-access, Purchase holds its own public contract as `CONTRACT.md` and `openapi.yaml`. The docs repo keeps links only (ADR-0005).
 
 ## Containers and deployment
 
@@ -33,54 +33,73 @@ Example: at 2026-10-05 10:00 Member A books Meeting Room A for 2026-10-07 09:00-
 
 Run each service alone from its own repo, or all three from the docs repo:
 
-- **Per repo** `compose.yaml`: `app` (build `.`, port 8001, 8002 or 8003) and `db` (postgres:16, `pg_isready` healthcheck, named volume). Only this file publishes a DB port (5441, 5442 or 5443), so pytest on the host can reach it. Calls to a service that is not running follow the failure rules below.
-- **Integration** `cowork-booking-docs/integration/compose.yaml`: builds the three services from the sibling folders, each with its own postgres:16. No DB port is published. `compose.e2e.yaml` adds only `TEST_CLOCK_ENABLED=true` (D27).
+- **Per repo** `compose.yaml`: `app` (build `.`, port 8001, 8002 or 8003) and `db` (postgres:16, `pg_isready` healthcheck, named volume). Only this file publishes a DB port (5441, 5442 or 5443), so pytest on the host can reach it. Every port is published on 127.0.0.1 only (`"127.0.0.1:5441:5432"`, `"127.0.0.1:8001:8000"`), and POSTGRES_PASSWORD comes from the repo's `.env`, never user=password (ADR-0011; section "Environment variables"). Calls to a service that is not running follow the failure rules below.
+- **Integration** `cowork-booking-docs/integration/compose.yaml`: builds the three services from the sibling folders, each with its own postgres:16. No DB port is published. `compose.e2e.yaml` adds `TEST_CLOCK_ENABLED=true` (D27) and the top-level `name: cowork-e2e`, so e2e data lives in its own volumes, and is used only by the e2e run (see "The e2e harness").
 
 ```yaml
-# integration/compose.yaml (one of three pairs)
+# integration/compose.yaml (one of three pairs); values come from integration/.env
 services:
   purchase-db:
     image: postgres:16
-    environment: {POSTGRES_USER: purchase, POSTGRES_PASSWORD: purchase, POSTGRES_DB: purchase}
+    environment: {POSTGRES_USER: purchase, POSTGRES_PASSWORD: "${PURCHASE_DB_PASSWORD}", POSTGRES_DB: purchase}
     healthcheck: {test: ["CMD-SHELL", "pg_isready -U purchase"], interval: 2s, retries: 30}
   purchase:
     build: ../../cowork-booking-purchase
-    ports: ["8001:8000"]
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql://purchase:purchase@purchase-db:5432/purchase
+    ports: ["127.0.0.1:8001:8000"]
+    environment:   # only Purchase's own variables; no shared env_file
+      DATABASE_URL: "postgresql://purchase:${PURCHASE_DB_PASSWORD}@purchase-db:5432/purchase"
+      SECRET_KEY: "${PURCHASE_SECRET_KEY}"
+      APP_REVISION: "${APP_REVISION}"
       PUBLIC_URL: http://localhost:8001
       PAYMENT_INTERNAL_URL: http://payment:8000
       PAYMENT_PUBLIC_URL: http://localhost:8002
+      PAYMENT_API_TOKEN: "${PAYMENT_API_TOKEN}"
       ACCESS_INTERNAL_URL: http://access:8000
       ACCESS_PUBLIC_URL: http://localhost:8003
+      ACCESS_API_TOKEN: "${ACCESS_API_TOKEN}"
+      OPERATOR_EMAIL: "${OPERATOR_EMAIL}"
     depends_on: {purchase-db: {condition: service_healthy}}
 ```
+
+From integration/.env, Payment gets only `PAYMENT_SECRET_KEY` (as SECRET_KEY), `PAYMENT_API_TOKEN` and `OPERATOR_PASSWORD`, and Access only `ACCESS_SECRET_KEY`, `ACCESS_API_TOKEN` and `STAFF_PASSWORD`; each also gets `APP_REVISION`, its own `DATABASE_URL` and its `PUBLIC_URL` (`http://localhost:8002` or `http://localhost:8003`), from which Payment builds the session url and Access the ticket_url. So a compromised Access container holds no Payment token, and a cookie signed by one service never verifies at another (ADR-0019). `integration/.env.example` lists every variable with an empty value.
+
+| integration/.env | Becomes, in the containers | Purpose |
+|---|---|---|
+| PURCHASE_DB_PASSWORD, PAYMENT_DB_PASSWORD, ACCESS_DB_PASSWORD | POSTGRES_PASSWORD of that database container, and the password inside that service's DATABASE_URL | one password per database |
+| PURCHASE_SECRET_KEY, PAYMENT_SECRET_KEY, ACCESS_SECRET_KEY | SECRET_KEY of that service only | a different key per service |
+| PAYMENT_API_TOKEN, ACCESS_API_TOKEN | the same name in Purchase and in the provider | bearer tokens |
+| OPERATOR_EMAIL (Purchase), OPERATOR_PASSWORD (Payment), STAFF_PASSWORD (Access) | the same name, one container each | operator and kiosk sign-in |
+| APP_REVISION | APP_REVISION in all three | shown by GET /health |
+| E2E_OPERATOR_PASSWORD | no container: read only by the e2e suite | the Purchase password of the OPERATOR_EMAIL account on the e2e stack; empty in .env.example |
+
+Run all three (no test clock):
 
 ```bash
 # from the mother folder; frees ports 8001-8003
 for s in purchase payment access; do (cd cowork-booking-$s && docker compose down); done
-cd cowork-booking-docs/integration && docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait
+cd cowork-booking-docs/integration && docker compose up -d --build --wait
 ```
 
+The e2e command, which adds `compose.e2e.yaml` and so opens POST /_test/clock on all three services, is under "The e2e harness"; never use it for a normal run. The integration README (M6) keeps the same split.
+
 - Server-to-server calls use the internal URL (`http://payment:8000`); the browser uses the public one (`http://localhost:8002/pay/ps_...`).
-- Browsers share cookies across ports on one host, so each service has its own cookie name (D15).
+- Browsers share cookies across ports on one host, so each service has its own cookie name (D15). On localhost every service, and any other page served from localhost on any port, receives all three cookies and is same-site for SameSite: run nothing else on localhost while using the stack. A real deployment gives each service its own host name and leaves the cookie domain unset, so each cookie is host-only.
 - The apps do not wait for each other: Purchase calls Payment and Access only when a request needs them.
 
 ## Data ownership
 
 ![Data model](diagrams/data-model.svg)
 
-A service reads and writes only its own database (ADR-0003; PUR-R35, PMT-R18, AXS-R04). Foreign keys exist only inside one database. A value from another service is a plain column, never a foreign key. Column names below are a guide for M5; the contracts pin only the JSON field names.
+A service reads and writes only its own database (ADR-0003; PUR-R35, PMT-R18, AXS-R04). Foreign keys exist only inside one database. A value from another service is a plain column, never a foreign key. Column names below are a guide for M5; the contracts pin only the JSON field names. Business times (bookings.created_at, hold_expires_at, refund_requested_at, bookings.cancelled_at, payment_sessions.created_at, paid_at, attempted_at, refunds.created_at, revoked_at, scanned_at) are written from `clock.now()` in the transaction that records the fact, never by a column default, because rules and the weekly sums read them under the test clock (D27).
 
 | Service | Table | Main columns |
 |---|---|---|
 | Purchase | members | id, email (unique, lower-cased), display_name, password_hash, is_operator, plan_active |
 | Purchase | spaces | id, name, capacity, hourly_rate_satang (BIGINT), archived_at |
-| Purchase | bookings | reference (unique, BK-), member_id, space_id, start_time, end_time, blocks, party_size, note, agreed_price_satang (BIGINT), coverage, status, hold_expires_at, payment_session_id, payment_outcome, cancel_reason, refund_amount_satang, refund_reason, refund_status, refund_attempt, grant_id, grant_status, ticket_url (PUR-T17, PUR-T34). The booking JSON field `payment_status` is this `payment_outcome` (not_required, unpaid, paid); it is not Payment's own payment_status (PMT-T04), which has no not_required |
-| Payment | payment_sessions | id (ps_), booking_reference (unique), amount_satang (BIGINT), currency, description, success_url, cancel_url, expires_at, status, payment_status |
-| Payment | payment_attempts | id (pa_), session_id, card_brand, card_last4, outcome, decline_code (PMT-R13) |
-| Payment | refunds | id (re_), payment_session_id, booking_reference, amount_satang, reason, attempt, status; unique (payment_session_id, attempt) (PMT-R14) |
+| Purchase | bookings | reference (unique, BK-), member_id, space_id, start_time, end_time, blocks, party_size, note, agreed_price_satang (BIGINT), coverage, status, created_at (timestamptz, written in the insert), cancelled_at (timestamptz, written in the cancel transaction; shown to an operator as "Cancelled 2026-10-05 11:00"), hold_expires_at, payment_session_id, payment_outcome, cancel_reason, refund_amount_satang, refund_reason, refund_status, refund_attempt, refund_requested_at (timestamptz, set when a refund above 0 is recorded: cancel step 1, amount_mismatch, slot_unavailable; shown in the all-bookings list as "Refund requested"), grant_id, grant_status, ticket_url (PUR-T17, PUR-T34). The booking JSON field `payment_status` is this `payment_outcome` (not_required, unpaid, paid); it is not Payment's own payment_status (PMT-T04), which has no not_required |
+| Payment | payment_sessions | id (ps_), booking_reference (unique), amount_satang (BIGINT), currency, description, success_url, cancel_url, expires_at, status, payment_status, created_at (timestamptz, written in the create transaction; the order of unpaid sessions on /operator, PMT-R17), paid_at (timestamptz, set in the pay transaction, PMT-R12) |
+| Payment | payment_attempts | id (pa_), session_id, card_brand, card_last4, outcome, decline_code, attempted_at (timestamptz) (PMT-R13) |
+| Payment | refunds | id (re_), payment_session_id, booking_reference, amount_satang, reason, attempt, status, created_at (timestamptz, a business time); unique (payment_session_id, attempt) (PMT-R14) |
 | Access | grants | id (gr_), booking_reference (unique), member_ref, space_id, space_name, valid_from, valid_until, ticket_code (unique), ticket_token (unique), status, revoked_at (timestamptz, null until the first revoke; a repeat revoke keeps it); a tombstone has no code, token or space (AXS-T07) |
 | Access | scans | id, scanned_at, space_id (selected room), input (normalised), result, grant_id (AXS-R15) |
 | All three | test_clock | one row: the override instant or null (D27) |
@@ -123,13 +142,14 @@ Every call follows the same three steps:
 
 | Call | Purchase sends it when | On an answer | On no answer |
 |---|---|---|---|
-| POST /payment-sessions | right after the held insert commits (PUR-R23) | 201, or 200 for a repeat: store payment_session_id, 303 the browser to `url` | the booking stays held without a session; flash "Payment is not reachable. Please try again." or JSON 503; "Continue to payment" repeats the call (PUR-Q09). A 400 or 409 is a Purchase defect, not "unreachable" |
-| GET /payment-sessions/{id} | at every reconcile point: booking page, return URL, My bookings, cancel, pre-insert sweep, the Operator's Reconcile (PUR-R24) | paid: fulfil (PUR-R25); unpaid after the hold: expired; unpaid inside the hold: no change | no change; the page says "Payment status unknown, refresh later"; a conflicting insert gets 503 or a flashed "try again" (D13) |
+| POST /payment-sessions | right after the held insert commits (PUR-R23) | 201, or 200 for a repeat: store payment_session_id, 303 the browser to PAYMENT_PUBLIC_URL/pay/<id>, never to the answer's `url` (PUR-R23) | the booking stays held without a session; flash "Payment is not reachable. Please try again." or JSON 503; "Continue to payment" repeats the call until the payment deadline (PUR-Q09, PUR-R40) |
+| GET /payment-sessions/{id} | at the reconcile points of PUR-R24: the booking page and its return URL, GET /api/bookings/<ref>, My bookings (the page and GET /api/bookings/mine), the cancel confirm screen, the pre-insert sweep, the Member's own lapsed holds (PUR-R39), and the Operator's Reconcile of one booking or of all held; the POST cancel uses expire in place of the GET (PUR-R31). "Reconcile all held" and the sweep stop after the first read with no answer | paid: fulfil (PUR-R25); unpaid after the hold: expired; unpaid inside the hold: no change | no change; the page says "Payment status unknown, refresh later"; a conflicting insert gets 503 or a flashed "try again" (D13) |
 | POST /payment-sessions/{id}/expire | the Member or Operator cancels a held booking (PUR-R31) | unpaid: cancelled, or expired if the hold had lapsed; paid: confirm without a grant, then cancel as confirmed | the cancel is refused with 503 or a flashed "try again"; nothing changes |
-| POST /refunds | cancel step 3, after the revoke succeeded (PUR-R32); the full refunds amount_mismatch and slot_unavailable (PUR-R25) | store succeeded or failed with refund_attempt; after failed, only the Operator's Retry sends attempt+1 (PUR-R33) | refund_status pending, "refund pending"; the retry sends the same attempt, so a lost answer never pays twice (PMT-R14) |
-| POST /grants | the booking becomes confirmed, and only while it stays confirmed with no cancel in progress (PUR-R26) | store grant_id, ticket_url, grant_status issued | grant_status pending, ticket "being prepared"; retried on the booking page or by the Operator's Retry (D20) |
-| POST /grants/{booking_reference}/revoke | cancel step 2 (PUR-R32) | grant_status revoked; an unknown reference becomes a revoked tombstone (AXS-R02) | grant_status revoke_pending, "revocation pending"; the refund waits (PUR-Q10); the retry revokes first |
+| POST /refunds | cancel step 3, after the revoke succeeded (PUR-R32); the full refunds amount_mismatch and slot_unavailable (PUR-R25) | store succeeded or failed with refund_attempt; after failed, only the Operator's Retry sends attempt+1 (PUR-R33) | refund_status stays pending (committed with refund_attempt before the call: cancel step 1, the amount_mismatch or slot_unavailable request, or the Operator's attempt n+1), "refund pending"; the retry sends the same attempt, so a lost answer never pays twice (PMT-R14) |
+| POST /grants | the booking becomes confirmed, and only while it stays confirmed with no cancel in progress (PUR-R26) | store grant_id, ticket_url, grant_status issued | grant_status pending (set when the booking was confirmed), ticket "being prepared"; retried at the retry points: the booking page (the page or GET /api/bookings/<ref>), the owner's Retry and the Operator's Retry (D20, PUR-R26) |
+| POST /grants/{booking_reference}/revoke | cancel step 2 (PUR-R32) | grant_status revoked; an unknown reference becomes a revoked tombstone (AXS-R02) | grant_status stays revoke_pending (set in cancel step 1, PUR-R32), "revocation pending"; the refund waits (PUR-Q10); the retry revokes first |
 
+- Any other 4xx answer (400, 401, 404, 409) is a Purchase or config defect, the same rule for every call: Purchase logs the operation, the booking reference and the status (never the token), stores nothing, and handles the step like "unreachable": pending, or "try again" where the request needs the answer (PUR-R35).
 - Purchase never calls GET /grants in v1 (PUR-R26).
 - Every JSON error in all three services is `{"error": {"code": "...", "message": "..."}}`. RULES.md rows quote only the message: `{"error": "Slot just taken"}` means `{"error": {"code": "slot_taken", "message": "Slot just taken"}}`. Only `GET /health` keeps the seed shape.
 - Retries are safe because every write has a natural key: booking_reference for a session, a grant and a revoke; (payment_session_id, attempt) for a refund (ADR-0014; PMT-R03, PMT-R14, AXS-R01, AXS-R17).
@@ -155,7 +175,7 @@ Invariant: every paid session ends as a confirmed booking or a refund attempt (D
 | a booking already expired | full refund with slot_unavailable | refund attempt |
 | a held cancel whose expire answers paid | confirm without a grant, then cancel as confirmed (PUR-R30) | confirmed booking, then cancelled with the policy refund |
 
-A held booking that nobody touches stays held until the Operator's Reconcile or the next sweep of its space closes it (the D13 trade-off).
+A held booking that nobody touches stays held until the Operator's Reconcile (one booking, or "Reconcile all held") or the next sweep of its space closes it (the D13 trade-off). Until then the dashboard counts it as held (PUR-R34).
 
 Flows:
 
@@ -187,29 +207,56 @@ Flows:
 |---|---|---|
 | Login session | Signed `purchase_session` cookie, 12 h from login whatever the activity. Logout clears it in that browser; a copied cookie still works until the 12 h end (accepted) | PUR-R03, D15, ADR-0016 |
 | Cookies | `purchase_session`, `payment_session`, `access_session`: HttpOnly and SameSite=Lax; Secure when PUBLIC_URL starts with https | PUR-R03, PMT-R19, AXS-R18 |
-| CSRF | SameSite=Lax instead of tokens. Every state change is a POST; a GET runs only the idempotent sync | PUR-R37, ADR-0009 |
-| SECRET_KEY | Required in all three. Unset or empty: the process exits at start | PUR-R03, PMT-R19, AXS-R18 |
-| Service tokens | `Authorization: Bearer` with PAYMENT_API_TOKEN or ACCESS_API_TOKEN. Missing, wrong or another scheme: 401 before any validation or lookup. Payment and Access refuse to start without their token. Compare with `hmac.compare_digest` | PMT-R01, AXS-R04, ADR-0019 |
-| HTTP Basic | Payment GET /operator checks OPERATOR_PASSWORD; the Access kiosk checks STAFF_PASSWORD; constant-time compare; only the password is checked (the e2e suite sends user operator or staff) | PMT-R17, AXS-R11, ADR-0019 |
+| CSRF | SameSite=Lax instead of tokens. Every state change is a POST; a GET runs only the idempotent sync. Except, accepted: POST /login and /logout, and the kiosk room choice (ADR-0016) | PUR-R37, ADR-0009, ADR-0016 |
+| SECRET_KEY | Required in all three. Unset, empty, shorter than 32 characters or the seed's public default "dev-secret-key-not-for-production": the process exits at start. API tokens need 32 characters too, OPERATOR_PASSWORD and STAFF_PASSWORD 12 (ADR-0019) | PUR-R03, PMT-R19, AXS-R18, ADR-0019 |
+| Service tokens | `Authorization: Bearer` with PAYMENT_API_TOKEN or ACCESS_API_TOKEN. Missing, wrong or another scheme: 401 before any validation or lookup. Payment and Access refuse to start without their token. Compare UTF-8 bytes: `hmac.compare_digest(given.encode("utf-8"), expected.encode("utf-8"))`, so a non-ASCII header gets 401, never a 500 | PMT-R01, AXS-R04, ADR-0019 |
+| HTTP Basic | Payment GET /operator checks OPERATOR_PASSWORD; the Access kiosk checks STAFF_PASSWORD; constant-time compare of UTF-8 bytes, as for tokens; only the password is checked (the e2e suite sends user operator or staff) | PMT-R17, AXS-R11, ADR-0019 |
 | Ownership | Booking pages and actions for the owner or an operator, else 404; anonymous callers get the login step or 401 before any lookup. Operator pages 404 to non-operators | PUR-R05, PUR-R06, D17 |
 | Card data | Store only brand and last4. Never store, log, flash or put in a URL the number, expiry or CVC; the card form posts in the body | PMT-R13, ADR-0020, ADR-0018 |
 | Hosted page | GET /pay/{id} needs no login; the 128-bit random session id is the link | PMT-R07, PMT-Q05 |
 | Ticket link | `/t/<ticket_token>`, 128-bit, view-only, no email; `Referrer-Policy: no-referrer`. Whoever holds the link holds entry for the window | AXS-R09, ADR-0008 |
 | Messages | Flask `flash()` only; never render text from `?error=`, `?message=` or `?code=` | PUR-R36, PMT-R10, AXS-R14, D28 |
-| Access log | gunicorn logs the path without the query string and without the referer (kept from the seed), so `?session_id=` never reaches the log; the `/t/` path is logged (accepted) | PMT-R13, AXS-R09 |
-| Accepted trade-offs | Logout replay inside 12 h, registration enumeration, bearer ticket link, HTTP Basic, mock card data | D16, ADR-0016 |
+| Access log | gunicorn logs the path without the query string and without the referer (kept from the seed, snippet under Runtime), so `?session_id=` never reaches the log; the `/t/` path is logged (accepted), and Payment's log records the `/pay/<id>` and `/payment-sessions/<id>` paths, so the session id is logged at the same trust level as Payment's database (accepted, PMT-Q05). Purchase never logs a ticket_url. No service logs request bodies or the Cookie and Authorization headers | PUR-R36, PMT-R13, AXS-R09, PUR-R26, ADR-0020 |
+| Caching | `Cache-Control: no-store` on every Purchase page served to a logged-in caller, on Payment's `/pay/<id>` and `/operator`, and on Access `/t/<ticket_token>` and `/checkin`, so after logout on a shared computer Back shows no booking, ticket link or email. One Purchase test checks the header on `/bookings/<ref>` | ADR-0016, PUR-R05 |
+| Request size | Flask `MAX_CONTENT_LENGTH = 64 * 1024` in all three apps, so a larger body gets 413 before it is parsed; the booking note is at most 500 characters (PUR-R14) | PUR-R14, D28 |
+| Output | Jinja autoescape on in all templates; the only output marked safe (`Markup` or the `safe` filter) is segno's SVG, built from the stored ticket code | ADR-0010 |
+| Accepted trade-offs | The five rows of ADR-0016 (logout replay inside 12 h, registration enumeration, bearer ticket link, HTTP Basic, mock card data) plus its smaller ones: login and logout CSRF, forged kiosk room change, one site on localhost, the first registrant of OPERATOR_EMAIL, no failed-login or kiosk limits, the bearer payment link, a pending revoke, the Operator's own bookings under the operator policy, no password change or reset (PUR-Q16), and hold cycling (PUR-Q17); all listed in the PRD section 3 table | D15, D16, D17, ADR-0009, ADR-0016 |
 
 ## Time and the test clock
 
 - **One fixed offset (D2).** Bangkok is UTC+7 with no daylight saving, so a fixed `timezone(timedelta(hours=7))` is exact and needs no tzdata (ADR-0012). Store timestamptz. JSON needs an offset: `"2026-10-07T09:00:00+07:00"` is accepted, `"2026-10-07T09:00:00"` gets 400. The form sends a date and a block; the server builds the instant (PUR-R07, PMT-R02, AXS-R03).
-- **One clock (D27).** Every service reads time only through `clock.now()`. SQL gets it as a parameter, never `now()` or `CURRENT_TIMESTAMP` in business logic; `created_at` defaults are fine (ADR-0013; PUR-R38, PMT-R20, AXS-R19).
-- **Test override.** With `TEST_CLOCK_ENABLED=true` (only in `compose.e2e.yaml`), `POST /_test/clock` stores an instant in the one-row `test_clock` table; `null` clears it. Otherwise the route answers 404. The e2e suite sets the same instant on all three services:
+- **One clock (D27).** Every service reads time only through `clock.now()`. SQL gets it as a parameter, never `now()` or `CURRENT_TIMESTAMP` in business logic; audit-only `created_at` defaults are fine, but the business times listed under "Data ownership" come from `clock.now()` (ADR-0013; PUR-R38, PMT-R20, AXS-R19).
+- **Test override.** With `TEST_CLOCK_ENABLED=true` (only in `compose.e2e.yaml`), `POST /_test/clock` stores an instant in the one-row `test_clock` table; `null` clears it. The override is a fixed instant: `clock.now()` returns exactly the stored value until the next POST, and never advances (ADR-0013). It reads the `test_clock` row on every call (no per-process cache), so both workers see a new instant from the next request. Otherwise the route answers 404, and `clock.now()` returns real time and never reads `test_clock`, even if an e2e run left a row in the volume. The e2e suite sets the same instant on all three services:
 
 ```bash
 for p in 8001 8002 8003; do
   curl -s -X POST localhost:$p/_test/clock -H 'Content-Type: application/json' -d '{"now": "2026-10-05T10:15:00+07:00"}'
 done   # Member A's unpaid hold on BK-7KQ2M9 has now lapsed on every service
 ```
+
+A `now` without an offset, or not a time at all, gets 400 and changes nothing (D2).
+
+### The e2e harness
+
+The e2e suite runs serially against one shared stack that is never reset (no reset hook exists). It starts the stack with the test clock on, the only place this command is used:
+
+```bash
+cd cowork-booking-docs/integration && docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait   # e2e only: enables POST /_test/clock
+```
+
+So:
+
+- Each test registers its own Members with unique emails, and the Operator creates a uniquely named space per test and finds its space_id with GET /api/spaces.
+- The helper registers OPERATOR_EMAIL with E2E_OPERATOR_PASSWORD, or on "Email already registered" logs in with it; if that login fails, the run stops at start with "OPERATOR_EMAIL is registered with another password: remove the e2e volumes". Manual checks on the e2e stack never register OPERATOR_EMAIL (the integration README says so).
+- `compose.e2e.yaml` sets the top-level `name: cowork-e2e`, so e2e accounts, bookings and the `test_clock` row live in their own volumes, never in those of a normal run. Both projects use ports 8001-8003: stop one before starting the other.
+- One helper sets the same instant on all three services before any login in that test.
+- A Purchase login is valid only while login_at <= clock.now() < login_at + 12 h (PUR-R03). After moving the clock 12 h or more past a login, or back before it, the helper logs every actor in again.
+- Shared figures (Payment totals, kiosk room lists and scan lists) are asserted as before-and-after deltas, or by the marker rows of the booking under test (purchase-payment.md section 8).
+- The wrong_room case first issues a grant in a second space, so Staff can select that room (AXS-R11).
+- The suite reads OPERATOR_EMAIL, E2E_OPERATOR_PASSWORD, PAYMENT_API_TOKEN, ACCESS_API_TOKEN, OPERATOR_PASSWORD and STAFF_PASSWORD from `integration/.env`, the file compose uses, and fails at start if any is empty.
+- Rows are scoped to the booking under test: Payment rows by `data-booking-reference`, Purchase all-bookings rows by `data-booking-reference`, kiosk scans by before-and-after deltas of `data-scan-result` rows at a room the test created.
+- e2e uses the per-booking Reconcile. The exact counts of "Reconcile all held" are asserted in Purchase integration tests with a fresh database, because earlier runs leave held bookings on the shared stack.
+- "Held cancel racing with payment" pays with `allow_redirects=False`, never follows success_url and reads nothing in Purchase before the cancel, because every read reconciles (contract purchase-public.md section 11; PUR-R31 row 12).
 
 ## Runtime
 
@@ -227,7 +274,10 @@ done   # Member A's unpaid hold on BK-7KQ2M9 has now lapsed on every service
 ```python
 # gunicorn.conf.py (all three)
 workers = 2  # ponytail: 2 workers x 1 DB connection is the ceiling; psycopg_pool is the upgrade path
-accesslog = "-"  # access_log_format uses %(U)s: path only, no query string, no referer
+timeout = 30  # gunicorn default, named: a request that waits on Payment stops after one 5 s timeout (PUR-R24)
+accesslog = "-"
+# kept from the seed: %(U)s is the path without the query string; no referer
+access_log_format = '%(h)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s %(M)sms "%(a)s"'
 ```
 
 - Each service keeps from the seed: `/health` with `revision` (503 when the DB is down), the fail-fast DB connect, the query-string scrubbing, `base.html` with `style.css`, and the `money` and `local_time` filters in THB.
@@ -247,23 +297,24 @@ Each service is delivered on its own (D26, ADR-0011). The course grades "Service
 
 ## Environment variables
 
-Commit only `.env.example` files. Never set `TEST_CLOCK_ENABLED` in a Dockerfile or `.env.example`.
+Commit only `.env.example` files, with every secret left empty (`SECRET_KEY=`), so a copied example fails fast; generate values with `python -c 'import secrets; print(secrets.token_hex(32))'`. Never set `TEST_CLOCK_ENABLED` in a Dockerfile, a service `compose.yaml` or `.env.example`. Each container gets only the variables in its own table below.
 
 | All services | Example (integration stack) | Purpose |
 |---|---|---|
-| DATABASE_URL | `postgresql://purchase:purchase@purchase-db:5432/purchase` | own database only; fail fast when unreachable |
-| SECRET_KEY | a long random string | required; signs the cookie and flashes |
+| DATABASE_URL | `postgresql://purchase:<password>@purchase-db:5432/purchase` | own database only; fail fast when unreachable |
+| SECRET_KEY | a different random value per service | required; signs the cookie and flashes |
 | APP_REVISION | the git SHA | shown by GET /health |
 | PUBLIC_URL | `http://localhost:8001` | the service's browser-facing base URL; Secure cookie when https; each service builds its own links from it (Purchase success_url and cancel_url, the Payment hosted-page url, the Access ticket_url) |
 | TEST_CLOCK_ENABLED | `true` in `compose.e2e.yaml` only | enables POST /_test/clock |
+| POSTGRES_PASSWORD | per-repo `.env` only, empty in `.env.example` | read by the repo's own `compose.yaml`, not by the app: the `db` container's password and the password inside that repo's DATABASE_URL. The integration stack uses PURCHASE_DB_PASSWORD, PAYMENT_DB_PASSWORD and ACCESS_DB_PASSWORD from integration/.env in its place |
 
 | Purchase | Example | Purpose |
 |---|---|---|
 | PAYMENT_INTERNAL_URL | `http://payment:8000` | server-to-server calls to Payment |
-| PAYMENT_PUBLIC_URL | `http://localhost:8002` | browser links to Payment pages |
+| PAYMENT_PUBLIC_URL | `http://localhost:8002` | the hosted-page redirect PAYMENT_PUBLIC_URL/pay/<id> (PUR-R23) and the "Payment totals" link |
 | PAYMENT_API_TOKEN | shared secret | bearer token on every Payment call |
 | ACCESS_INTERNAL_URL | `http://access:8000` | server-to-server calls to Access |
-| ACCESS_PUBLIC_URL | `http://localhost:8003` | browser links to Access pages |
+| ACCESS_PUBLIC_URL | `http://localhost:8003` | a ticket_url is stored only when it starts with ACCESS_PUBLIC_URL/t/ (PUR-R26) |
 | ACCESS_API_TOKEN | shared secret | bearer token on every Access call |
 | OPERATOR_EMAIL | `operator@example.com` | the Member with this email becomes the Operator (PUR-R04) |
 
@@ -285,7 +336,7 @@ cowork-booking-docs/  README.md SOURCES.md GLOSSARY.md RULES.md ID_MAP.md DECISI
                       REVIEW_LOG.md TRACEABILITY.md inventory/ scripts/check_docs.py
                       integration/{compose.yaml,compose.e2e.yaml,.env.example,e2e/,README.md} .github/workflows/docs.yml
 cowork-booking-<svc>/ app.py (or a small package past ~600 lines) <domain>.py clock.py templates/ static/ tests/
-                      openapi.yaml CONTRACT.md (Payment, Access) PROVENANCE.md README.md Dockerfile compose.yaml
+                      openapi.yaml CONTRACT.md (all three; ADR-0005) PROVENANCE.md README.md Dockerfile compose.yaml
                       gunicorn.conf.py pytest.ini requirements.txt .github/workflows/ci.yml
 ```
 

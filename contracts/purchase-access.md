@@ -24,20 +24,20 @@ Purchase asks Access to "Issue an authorised grant" ([extraction site]). Access 
 |---|---|---|
 | `ACCESS_INTERNAL_URL` (Purchase env) | `http://access:8000` | Purchase, for every API call |
 | `PUBLIC_URL` (Access env) | `http://localhost:8003` | Access, to build `ticket_url` |
-| `ACCESS_PUBLIC_URL` (Purchase env) | `http://localhost:8003` | Purchase, for links it prints itself |
+| `ACCESS_PUBLIC_URL` (Purchase env) | `http://localhost:8003` | Purchase stores and shows a `ticket_url` only when it starts with `ACCESS_PUBLIC_URL/t/`; any other value is a config defect (PUR-R26, PUR-R35) |
 
 Authentication (ADR-0019):
 
-- **API** (`/grants*`): send `Authorization: Bearer <ACCESS_API_TOKEN>`. A missing token, a wrong token or another scheme gets 401 before any validation or lookup, and nothing changes (AXS-R04). Access compares in constant time and refuses to start when `ACCESS_API_TOKEN` is unset or empty.
+- **API** (`/grants*`): send `Authorization: Bearer <ACCESS_API_TOKEN>`. A missing token, a wrong token or another scheme gets 401 before any validation or lookup, and nothing changes (AXS-R04). Access compares in constant time and refuses to start when `ACCESS_API_TOKEN` is unset, empty or shorter than 32 characters (AXS-R04, ADR-0019).
 - **E-ticket** (`/t/<ticket_token>`): no login and no token. The 128-bit ticket token is a view-only bearer link (AXS-R09, ADR-0008).
-- **Kiosk** (`/checkin`): HTTP Basic, user `staff`, password `STAFF_PASSWORD`. Access checks only the password (AXS-R11).
+- **Kiosk** (`/checkin`): HTTP Basic, user `staff`, password `STAFF_PASSWORD`. Access checks only the password and refuses to start when `STAFF_PASSWORD` is unset, empty or shorter than 12 characters (AXS-R11).
 - `/health` and `/_test/clock` need no credentials.
 
 ## 3. Conventions
 
 - JSON in and out, `Content-Type: application/json`.
 - Times: ISO 8601 with an offset. Access stores the instants as sent and answers in Bangkok time, `+07:00` (D2).
-- IDs: grant `gr_` + 22 characters (D22). Ticket code: 8 symbols from `23456789ABCDEFGHJKMNPQRSTVWXYZ`, stored without the hyphen, returned and shown `XXXX-XXXX`, never starting with `BK` (AXS-R06).
+- IDs: grant `gr_` + 22 characters (D22). Ticket token: `secrets.token_urlsafe(16)`, 22 characters matching `^[A-Za-z0-9_-]{22}$`, 128 random bits: it is the bearer link to the e-ticket, so it must be unguessable (AXS-R09). Ticket code: 8 symbols from `23456789ABCDEFGHJKMNPQRSTVWXYZ`, stored without the hyphen, returned and shown `XXXX-XXXX`, never starting with `BK` (AXS-R06).
 - Unknown request fields are ignored. Consumers ignore unknown response fields.
 - Errors always have this shape. The rule rows quote only the text, which is `error.message`. Only `GET /health` keeps the seed shape, `{"status": "error", "error": "database unreachable"}` (section 4.7):
 
@@ -97,6 +97,8 @@ Responses:
 | 400 | Error `invalid_request` | A field is invalid. Nothing stored |
 | 401 | Error `unauthorized` | Token check fails. Checked first |
 
+Order of checks: token (401), fields (400), then by `booking_reference`: a revoked grant or tombstone (200 revoked, nothing issued), an existing grant (200 unchanged, body ignored), else insert (201). So a repeat with an invalid body gets 400 even when a grant exists.
+
 Two identical POSTs at the same instant store one grant. Both answers carry the same `grant_id` and code (UNIQUE `booking_reference`, insert that returns the existing row on conflict).
 
 Idempotency: natural key `booking_reference` (ADR-0014). No Idempotency-Key header.
@@ -144,19 +146,23 @@ The e-ticket. Purchase shows the "View e-ticket" link only to the owner or an op
 | Revoked grant | 200 | Badge Cancelled and a CANCELLED overlay over the code and QR |
 | Unknown token | 404 | No hint whether any ticket exists |
 
-The badge follows the stored state and the clock: Issued, Checked in, Expired (now at or after `valid_until`) or Cancelled. The page never shows a code from the URL. It sends `Referrer-Policy: no-referrer` and prints on one page.
+The badge follows the stored state and the clock: Issued, Checked in, Expired (now at or after `valid_until`) or Cancelled; when two apply, Cancelled wins over Expired, Expired over Checked in, and Checked in over Issued (AXS-R10). The page never shows a code from the URL. It sends `Referrer-Policy: no-referrer` and prints on one page. It has no navigation; Purchase's "View e-ticket" link opens it in a new tab, so the booking page stays open (purchase-public.md section 7).
 
 Implements: AXS-R05, AXS-R07, AXS-R08, AXS-R09, AXS-R10.
 
 ### 4.6 GET and POST /checkin (Staff)
 
-HTTP Basic, user `staff`. Without the right password: 401 with a Basic challenge, and nothing is logged.
+HTTP Basic, user `staff`. Without the right password: 401 with `WWW-Authenticate: Basic`, and no scan is stored (gunicorn's access log keeps the 401 line).
 
-- `GET /checkin`: the room list (from `space_id` and `space_name` in stored grants, tombstones excluded), the selected room, an autofocused code input, the last result, and the last 10 scans at that room with codes masked (`••••-9QXA`).
-- `POST /checkin` with form field `space_id` and no `code`: select the room. Access stores it in the `access_session` cookie. 303 to `/checkin`.
+- `GET /checkin`: the room list (from `space_id` and `space_name` in stored grants, tombstones excluded; one entry per `space_id`, listed by `space_id` ascending, labelled with the `space_name` of its grant with the greatest `valid_from` and the room number, "Meeting Room A (room 1)", because an archived space's name can be used again; a room whose space Purchase archived stays listed), the selected room with the same label beside every result, the selected room, an autofocused code input, the last result, and the last 10 scans at that room, newest first by scan time and then by scan id (a frozen test clock gives equal times), with codes masked (`••••-9QXA`) and times as HH:MM for today, YYYY-MM-DD HH:MM for older scans.
+- With no grant stored: "No rooms yet: a room appears after its first ticket is issued" and no code input (AXS-R11).
+- `POST /checkin` with form field `space_id` and no `code`: select the room. Access stores it in the `access_session` cookie. 303 to `/checkin`. A `space_id` that is not in the room list gets 303 with the flash "Unknown room", and the selection does not change.
 - `POST /checkin` with form field `code`: scan at the room in `access_session`. A `space_id` in the same POST is ignored: only a POST without `code` selects the room (AXS-R11). So a cross-site form, which arrives without the SameSite=Lax cookie, has no room and is refused even when it sends a `space_id` (AXS-R18). 303 to `/checkin`, where the result shows once (flashed, never in a query string).
 - A scan is therefore two POSTs: first `space_id=1` (select), then `code=H7K3-9QXA` (scan) with the same cookie. The e2e suite does the same.
 - A scan with no room selected: 303 to `/checkin` with the flash "Select the room first". No scan stored.
+- A code that is blank after normalisation (a scanner's double Enter): 303 with the flash "Enter a code". No scan stored.
+- The e2e wrong_room case first issues a grant in a second space, so that Staff can select that room.
+- A cross-site form can change the selected room, because the browser resends cached Basic credentials; it cannot scan. The kiosk shows its room with every result (accepted, ADR-0016).
 
 The kiosk upper-cases the input and strips spaces and hyphens, then decides in this order (AXS-R12, AXS-R14, AXS-R13):
 
@@ -164,7 +170,7 @@ The kiosk upper-cases the input and strips spaces and hyphens, then decides in t
 |---|---|---|
 | 1 | `unknown_code` | "Code not recognised". Also for a booking reference (BK7KQ2M9) or a ticket token |
 | 2 | `revoked` | "This ticket was cancelled" |
-| 3 | `wrong_room` | "This ticket is for Meeting Room A" |
+| 3 | `wrong_room` | "This ticket is for Meeting Room A (room 1)": the ticket's room with its room number |
 | 4 | `not_open_yet` | "opens 09:00" (or "opens 2026-10-07 09:00" on another date) |
 | 4 | `closed` | "Check-in closed at 10:30" |
 | 4 | `ok` | "Door unlocked (mock)". Re-entry inside the window is ok again |
@@ -176,7 +182,7 @@ Implements: AXS-R11, AXS-R12, AXS-R13, AXS-R14, AXS-R15, AXS-R16, AXS-R18.
 ### 4.7 GET /health and POST /_test/clock
 
 - `GET /health`: 200 `{"status": "ok", "revision": "<APP_REVISION>"}`; 503 `{"status": "error", "error": "database unreachable"}`.
-- `POST /_test/clock` `{"now": "2026-10-07T09:00:00+07:00"}` or `{"now": null}`: 200 `{"now": ...}` only when `TEST_CLOCK_ENABLED` is exactly `true`. Otherwise 404 and nothing stored (AXS-R19, D27, ADR-0013).
+- `POST /_test/clock` `{"now": "2026-10-07T09:00:00+07:00"}` or `{"now": null}`: 200 `{"now": ...}` only when `TEST_CLOCK_ENABLED` is exactly `true`. Otherwise 404 and nothing stored, and `clock.now()` never reads `test_clock` (AXS-R19, D27, ADR-0013). A `now` without an offset gets 400 and nothing is stored.
 
 ## 5. Examples
 
@@ -262,9 +268,9 @@ The grant stays issued.
 
 ### 5.3 Failure
 
-Access does not answer within 5 s during issuance. Purchase keeps the booking confirmed and stores `grant_status` pending. `GET /api/bookings/BK-7KQ2M9` on Purchase then shows `"status": "confirmed", "grant_status": "pending", "ticket_url": null`, and the booking page says "Your e-ticket is being prepared" (PUR-R26). The next booking page open or the Operator's Retry resends the same POST /grants.
+Access does not answer within 5 s during issuance. Purchase keeps the booking confirmed and stores `grant_status` pending. `GET /api/bookings/BK-7KQ2M9` on Purchase then shows `"status": "confirmed", "grant_status": "pending", "ticket_url": null`, and the booking page says "Your e-ticket is being prepared" (PUR-R26). The next booking page open (or GET /api/bookings/<ref>), the owner's Retry or the Operator's Retry resends the same POST /grants (PUR-R26).
 
-The revoke gets no answer. Purchase stores `grant_status` revoke_pending, shows "Revocation pending" and "Refund pending", and sends no refund yet (PUR-R32, PUR-Q10). Until the revoke lands, the old code still opens (PUR-Q12).
+The revoke gets no answer. Purchase stores `grant_status` revoke_pending; the booking page shows "Your ticket is still being cancelled; any refund follows." and "Refund of THB 450.00 pending.", the Operator's list flags "Revocation pending" and "Refund pending", and no refund is sent yet (PUR-R32, PUR-Q10). Until the revoke lands, the old code still opens (PUR-Q12).
 
 A late issuance retry meets a tombstone. BK-P4W6RC was revoked before any grant existed (AXS-R02):
 
@@ -339,9 +345,9 @@ The request carries no price, amount or coverage, and Access does not ask for on
 |---|---|---|---|
 | POST /grants | 201 or 200 issued or checked_in | Store `grant_id`, `ticket_url`, `grant_status` issued | PUR-R26 |
 | POST /grants | 200 revoked | Store `grant_status` revoked. No e-ticket link | PUR-R26 |
-| POST /grants | No answer or 5xx | `grant_status` pending, "being prepared". Retry on the booking page or the Operator's Retry | PUR-R26 |
+| POST /grants | No answer or 5xx | `grant_status` stays pending (set when the booking was confirmed), "being prepared". Retried at the retry points: the booking page (the page or `GET /api/bookings/<ref>`), the owner's Retry and the Operator's Retry | PUR-R26 |
 | revoke | 200 revoked | `grant_status` revoked. Then the refund step may run | PUR-R32 |
-| revoke | No answer or 5xx | `grant_status` revoke_pending, "revocation pending". The refund waits | PUR-R32, PUR-Q10 |
+| revoke | No answer or 5xx | `grant_status` stays revoke_pending (set in cancel step 1), "revocation pending". The refund waits | PUR-R32, PUR-Q10 |
 
 Purchase never stores `checked_in` or a no-show: `grant_status` is Purchase's own record of what it asked for (PUR-T34).
 
@@ -350,10 +356,10 @@ Purchase never stores `checked_in` or a no-show: `grant_status` is Purchase's ow
 - Every call uses `timeout=5` seconds (D28, PUR-R35).
 - A timeout, a connection error or a 5xx answer means "unreachable". Purchase stores no result for it and marks the step pending.
 - Purchase never calls Access while a database transaction is open. For a cancel, step 1 commits first; then Purchase revokes (PUR-R32, PUR-R35).
-- Purchase makes one attempt per call inside a request, with no loop or sleep. It retries on the next touch: booking page open or the Operator's Retry. Revoke first, then the refund (PUR-R32).
+- Purchase makes one attempt per call inside a request, with no loop or sleep. It retries on the next touch, at the retry points: the booking page (the page or `GET /api/bookings/<ref>`), the owner's Retry (`POST /bookings/<ref>/retry`) and the Operator's Retry (`POST /operator/bookings/<ref>/retry`). Revoke first, then the refund (PUR-R26, PUR-R32).
 - Purchase never retries POST /grants for a booking that is cancelled or has a cancel in progress (PUR-R26).
 - Retries are safe: POST /grants and revoke are idempotent on `booking_reference` (ADR-0014), and a revoke that lands before an issue leaves a tombstone (AXS-R02).
-- Any other 4xx (400, 401) is a defect in Purchase or its config. Purchase logs the operation, the booking reference and the status (never the token), stores nothing and treats the step as pending.
+- Any other 4xx (400, 401) is a defect in Purchase or its config. Purchase logs the operation, the booking reference and the status (never the token), stores nothing and handles the step like "unreachable": pending (PUR-R35).
 - Access never retries anything and never calls back (AXS-R04, ADR-0004).
 
 ## 8. Test-observable page markers
@@ -362,7 +368,9 @@ Purchase never stores `checked_in` or a no-show: `grant_status` is Purchase's ow
 |---|---|---|
 | GET `/t/<ticket_token>` | element `data-ticket-code="H7K3-9QXA"` holding the large code | The code as shown, `XXXX-XXXX` |
 | GET `/t/<ticket_token>` | element `data-status="issued"` on the badge | The stored state: `issued`, `checked_in` or `revoked`. The badge text may say Expired; `data-status` stays the stored state |
-| GET `/checkin` after a scan | element `data-result="ok"` with the reason text | `ok`, `not_open_yet`, `closed`, `revoked`, `wrong_room`, `unknown_code` |
+| GET `/checkin` after a scan | element `data-result="ok"` with the reason text; only the flashed result carries `data-result` | `ok`, `not_open_yet`, `closed`, `revoked`, `wrong_room`, `unknown_code` |
+| GET `/checkin` | element `data-selected-space-id="1"` on the selected room | The `space_id` in `access_session`; absent when none is selected |
+| GET `/checkin`, each of the last 10 scan rows | `data-scan-result="ok"`, `data-scan-last4="9QXA"` | The same result values; the last 4 symbols shown. Shared kiosk lists are asserted as before-and-after deltas |
 
 ## 9. Versioning
 

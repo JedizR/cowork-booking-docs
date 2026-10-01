@@ -19,7 +19,7 @@ Constraints: gunicorn with 2 workers, no scheduler, no broker (ADR-0015). Only P
 ## Decision
 
 - Never trust a stored held status alone. Every availability read and the booking check use the slot-blocking predicate with `:now` = `clock.now()` passed as a parameter (PUR-R12).
-- Let the stored status catch up when touched. On the booking page, My bookings, cancel, the pre-insert sweep and the Operator's Reconcile, Purchase calls GET /payment-sessions/<id> for a held booking (PUR-R24):
+- Let the stored status catch up when touched. At the reconcile points of PUR-R24 (the booking page and its return URL, GET /api/bookings/<ref>, My bookings (the page and GET /api/bookings/mine), the cancel confirm screen, the pre-insert sweep, the Member's own lapsed holds (PUR-R39), and the Operator's Reconcile of one booking or of all held), Purchase calls GET /payment-sessions/<id> for a held booking; the POST cancel uses expire in place of the GET (PUR-R31):
   - paid: fulfilment, even after the hold lapsed (PUR-R25);
   - unpaid, hold lapsed: expired;
   - unpaid, inside the hold: no change;

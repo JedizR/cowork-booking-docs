@@ -21,8 +21,8 @@ sequenceDiagram
   Note over B,AXS: 10:20, after hold_expires_at 10:15. Anything that touches the held booking reconciles it (PUR-R24, ADR-0007)
   alt Member A opens the booking page or My bookings
     B->>P: GET /bookings/BK-7KQ2M9 (or GET /bookings/mine)
-  else Operator presses Reconcile
-    OP->>P: POST /operator/bookings/BK-7KQ2M9/reconcile (PUR-R06)
+  else Operator presses Reconcile, or "Reconcile all held"
+    OP->>P: POST /operator/bookings/BK-7KQ2M9/reconcile, or POST /operator/bookings/reconcile (PUR-R06)
   else Another booking of Meeting Room A runs the pre-insert sweep
     B->>P: POST /spaces/1/book (any Member, PUR-R22)
   end
@@ -33,8 +33,14 @@ sequenceDiagram
     Note over P,PAY: Confirmed, not expired. No attempt was accepted at or after expires_at 10:13,<br/>so the outcome was final before the hold ended (PMT-R11, PUR-R40)
     P->>AXS: POST /grants {"booking_reference": "BK-7KQ2M9", ...} (PUR-R26)
     AXS-->>P: 201 {"ticket_code": "H7K3-9QXA", "status": "issued"}
-    P-->>B: booking page: confirmed, "View e-ticket"
+    alt Member A's page or list
+      P-->>B: booking page: confirmed, "View e-ticket"
+    else Operator's Reconcile
+      P-->>OP: 303 to /operator/bookings, flash "1 confirmed, 0 expired, 0 cancelled, 0 unchanged" (PUR-R24)
+    else Another Member's sweep
+      P-->>B: that Member's insert proceeds, or gets "Slot just taken" if it wanted 09:00-10:30 (PUR-R22)
+    end
   else Payment unreachable (timeout=5)
     PAY--xP: no answer
-    Note over P: Nothing changes. Page says "Payment status unknown, refresh later" (PUR-R24)<br/>A conflicting insert gets 503 or the flash "try again"
+    Note over P: Nothing changes. At 10:20, past the 10:13 deadline, the page says "Payment status unknown.<br/>If you paid before 10:13, your booking will be confirmed: refresh in a minute." and Cancel (PUR-R24, PUR-R40)<br/>An insert that overlaps the unread lapsed hold gets 503 or the flash "try again" (PUR-R22)
   end

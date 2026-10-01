@@ -15,11 +15,11 @@ sequenceDiagram
   B->>PAY: GET /pay/ps_...
   PAY-->>B: 200 hosted page, "Pay by 10:13", test cards listed (PMT-R07)
   B->>PAY: POST /pay/ps_... card_number=4242 4242 4242, expiry=12/28, cvc=123
-  PAY-->>B: 200 re-render "card_number must be 13-19 digits", card fields empty
+  PAY-->>B: 303 to /pay/ps_..., the GET shows the flash "Card number must be 13 to 19 digits", card fields empty
   Note over PAY: A form error is not an attempt: nothing stored (PMT-R08, PMT-R13)
   B->>PAY: POST /pay/ps_... card_number=4000000000000002, expiry=12/28, cvc=123
   Note over PAY: One transaction, session row FOR UPDATE (PMT-R12)<br/>attempt pa_... declined(generic_decline) stored, visa 0002 only (PMT-R09)<br/>session stays open and unpaid (PMT-R10)
-  PAY-->>B: 200 re-render "Your card was declined.", data-decline-code="generic_decline"
+  PAY-->>B: 303 to /pay/ps_..., the GET shows the flash "Your card was declined." in data-decline-code="generic_decline"<br/>A reload never re-posts the card (PMT-R10)
   Note over B,PAY: Same for 4000000000009995 insufficient_funds, 4000000000000069 expired_card,<br/>4000000000000119 processing_error. Any other valid-looking number: generic_decline (PMT-R09)
   Note over B,P: A decline never touches purchase_session: Member A is still logged in (PUR-R03, PMT-R19)<br/>Booking stays held, slot still blocked (PUR-R12)
   B->>PAY: POST /pay/ps_... card_number=4242424242424242, expiry=12/28, cvc=123 (retry, same page)
