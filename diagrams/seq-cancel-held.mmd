@@ -14,30 +14,34 @@ sequenceDiagram
   end
   Note over B,PAY: 10:05 BK-7KQ2M9 is held until 10:15, session ps_... open until 10:13, THB 450.00
   B->>P: GET /bookings/BK-7KQ2M9/cancel
-  P-->>B: 200 confirm screen: "No payment has been taken. If your payment already went through,<br/>the refund follows the policy: THB 450.00" (PUR-R31, PUR-R30)
-  B->>P: POST /bookings/BK-7KQ2M9/cancel
+  P->>PAY: GET /payment-sessions/ps_... (the confirm screen reconciles first, PUR-R24)
+  PAY-->>P: 200 {"status": "open", "payment_status": "unpaid"}
+  P-->>B: 200 confirm screen: "We have not received a payment for this booking. Cancelling closes the payment page.<br/>If a payment completes first, the refund is THB 450.00 (100%)." (PUR-R31, PUR-R30)
+  Note over B,P: Had the read found paid, the booking would be confirmed now and the screen would show "Refund THB 450.00 (100%)"
+  B->>P: POST /bookings/BK-7KQ2M9/cancel shown_refund_satang=45000
+  Note over P: The PUR-R30 amount is still 45000, so the check passes#59; it runs before any Payment call (PUR-R30)
   P->>PAY: POST /payment-sessions/ps_.../expire, Bearer PAYMENT_API_TOKEN (PUR-R31)
   Note over PAY: The expire and any Pay lock the same session row: exactly one wins (PMT-R06)
   alt Payment unreachable
     PAY--xP: no answer (timeout=5)
-    P-->>B: 303 back, flash "try again", nothing changes (PUR-R31)
+    P-->>B: 303 to /bookings/BK-7KQ2M9, flash "Payment is not reachable. Please try again.", nothing changes (PUR-R31)
   else unpaid, inside the hold (the usual case)
     PAY-->>P: 200 {"status": "expired", "payment_status": "unpaid"}
     P->>PDB: held to cancelled, cancel_reason member_cancel, no refund (PUR-R28)
-    P-->>B: 303 to /bookings/BK-7KQ2M9, cancelled, "No payment was taken"
+    P-->>B: 303 to /bookings/BK-7KQ2M9, flash "Booking cancelled", no refund
   else unpaid, hold already lapsed (now at or after 10:15)
     PAY-->>P: 200 {"status": "expired", "payment_status": "unpaid"}
     P->>PDB: held to expired, not cancelled (PUR-R31, PUR-R24)
-    P-->>B: 303 to /bookings/BK-7KQ2M9, expired
-  else paid in another tab just before the expire
+    P-->>B: 303 to /bookings/BK-7KQ2M9, flash "This hold has already expired"
+  else paid in another tab between the screen and the expire
     PAY-->>P: 200 {"status": "complete", "payment_status": "paid", "amount_satang": 45000}
     P->>PDB: BEGIN, held to confirmed without issuing a grant, COMMIT (PUR-R31, PUR-R25)
-    Note over P: Continue as a confirmed-booking cancel: 2026-10-05 10:05 is 46 h before start, 100% (PUR-R30)
+    Note over P: Continue as a confirmed-booking cancel: 2026-10-05 10:05 is about 47 h before start, 100% (PUR-R30)
     P->>PDB: BEGIN, confirmed to cancelled, refund_amount_satang 45000, member_cancel, COMMIT (PUR-R32)
     P->>AXS: POST /grants/BK-7KQ2M9/revoke, Bearer ACCESS_API_TOKEN
     AXS-->>P: 200 {"status": "revoked"} revoked tombstone, no grant ever issued (AXS-R02, AXS-R17)
     P->>PAY: POST /refunds {"payment_session_id": "ps_...", "booking_reference": "BK-7KQ2M9", "amount_satang": 45000, "reason": "member_cancel", "attempt": 1}
     PAY-->>P: 201 {"id": "re_...", "status": "succeeded"} (PMT-R14, PMT-R15)
     P->>PDB: grant_status revoked, refund_status succeeded, refund_attempt 1
-    P-->>B: 303 to /bookings/BK-7KQ2M9, cancelled, refund THB 450.00
+    P-->>B: 303 to /bookings/BK-7KQ2M9, flash "Booking cancelled", refund THB 450.00 (100%)
   end

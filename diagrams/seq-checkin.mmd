@@ -12,12 +12,12 @@ sequenceDiagram
     participant K as Access kiosk :8003
     participant ADB as Access DB
   end
-  Note over S,ADB: Grant for BK-7KQ2M9: Meeting Room A (space_id 1), code H7K3-9QXA, window [2026-10-07 09:00, 10:30)
+  Note over S,ADB: Grant for BK-7KQ2M9: Meeting Room A (space_id 1), code H7K3-9QXA, window [2026-10-07 09:00, 10:30).<br/>A grant also exists for Focus Pod 1 (space_id 2), BK-9MZ4RC, so Staff can select room 2
   S->>K: GET /checkin (HTTP Basic, user staff, STAFF_PASSWORD)
-  K-->>S: 200 room list from space_id and space_name in stored grants, autofocused code input (AXS-R11)
+  K-->>S: 200 room list from space_id and space_name in stored grants, labelled "Meeting Room A (room 1)", autofocused code input (AXS-R11)
   S->>K: POST /checkin space_id=1 (no code: select Meeting Room A)
   K-->>S: 303 to /checkin, room 1 stored in the access_session cookie (AXS-R11, AXS-R18)
-  Note over S,K: Each scan below is a POST with code only. The room comes from access_session.<br/>A space_id sent with a code is ignored, so a cross-site form cannot pick the room (AXS-R11)
+  Note over S,K: Each scan below is a POST with code only. The room comes from access_session.<br/>A space_id sent with a code is ignored, so a cross-site scan has no room and is refused (Select the room first).<br/>A cross-site room change (space_id, no code) is possible and accepted (ADR-0016, AXS-R11 row 10)
   Note over K: Every scan: normalise (upper-case, strip spaces and hyphens, AXS-R12),<br/>then decide in order unknown_code, revoked, wrong_room, window (AXS-R14, AXS-R13)
   alt 2026-10-07 08:50, room 1, code "h7k3 9qxa"
     S->>K: POST /checkin code=h7k3 9qxa
@@ -38,7 +38,7 @@ sequenceDiagram
     S->>K: POST /checkin space_id=2 (no code: select Focus Pod 1)
     K-->>S: 303 to /checkin, room 2 stored in access_session
     S->>K: POST /checkin code=H7K3-9QXA
-    K-->>S: 303 to /checkin, data-result="wrong_room" "This ticket is for Meeting Room A"
+    K-->>S: 303 to /checkin, data-result="wrong_room" "This ticket is for Meeting Room A (room 1)"
   else 09:10, room 1, code of a cancelled booking (grant revoked)
     S->>K: POST /checkin code=H7K3-9QXA
     K-->>S: 303 to /checkin, data-result="revoked" "This ticket was cancelled"

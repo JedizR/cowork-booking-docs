@@ -19,15 +19,20 @@ Accept these five trade-offs. Document each in the PRD and the service READMEs.
 | 1 | Logout replay inside 12 h | F10: sessions never expire, logout only clears that browser, the default SECRET_KEY is used in deploy (app.py:20, 386, 508, 536) | Reuse a copied cookie until 12 h after login, even after logout | Absolute 12 h expiry; SECRET_KEY required, fail fast; HttpOnly; Secure over https | PUR-R03, D15 |
 | 2 | Registration enumeration | F11: registration reveals whether an email exists (app.py:461-462, 485-486) | Learn whether an email has an account by trying to register it | Login keeps one uniform error; hiding it would need a confirmation email, and v1 sends none | PUR-R01, PUR-R02, PUR-Q04, D16 |
 | 3 | Bearer ticket link | F4: the code is never stored and any ?code= value is shown (app.py:832, 970-985); F7: unlock is anonymous | Whoever gets the /t/ link can read the code and check in during the window | 128-bit token; view-only; no email shown; no-referrer; revoke ends it; Purchase shows the link only to the owner or an operator (ADR-0008) | AXS-R09, PUR-R05, D17 |
-| 4 | HTTP Basic for the Payment operator page and the Access kiosk | F7: space admin and unlock are anonymous (app.py:570-599, 620-682, 852-869); F8: the revenue dashboard is public (app.py:1027-1050) | Anyone who learns OPERATOR_PASSWORD or STAFF_PASSWORD gets in; passwords are shared, with no per-person audit, no lockout and no logout | Constant-time compare; refuse to start without the password; https in production; every scan is logged (ADR-0019) | PMT-R17, AXS-R11, AXS-R15, AXS-Q04 |
-| 5 | Mock card data | F16: a 0-amount booking still asks for a card (app.py:953-955); A6: the force_failure test hook is live (app.py:957-958, 995) | Pay any session with a test card; anyone with a /pay/ link can pay that session; no real money moves | Documented test cards only; amounts come from Purchase; only brand and last4 stored (ADR-0018, ADR-0020) | PMT-R08, PMT-R09, PMT-R13, PMT-Q05 |
+| 4 | HTTP Basic for the Payment operator page and the Access kiosk | F7: space admin and unlock are anonymous (app.py:570-599, 620-682, 852-869); F8: the revenue dashboard is public (app.py:1027-1050) | Anyone who learns OPERATOR_PASSWORD or STAFF_PASSWORD gets in; passwords are shared, with no per-person audit, no lockout and no logout | Passwords of at least 12 characters (no start otherwise); constant-time compare; every 401 in gunicorn's access log; https in production (ADR-0019) | PMT-R17, AXS-R11, AXS-R15, AXS-Q04 |
+| 5 | Mock card data | F7: the pay route is anonymous (app.py:987-997); A6: the force_failure test hook is live (app.py:957-958, 995) | Pay any session with a test card; anyone with a /pay/ link can pay that session; no real money moves | Documented test cards only; amounts come from Purchase; only brand and last4 stored (ADR-0018, ADR-0020) | PMT-R08, PMT-R09, PMT-R13, PMT-Q05 |
 
 Also accepted, smaller:
 
 - The first person to register the OPERATOR_EMAIL address becomes the Operator (PUR-R04). Register it right after first start.
-- No failed-login limit (PUR-Q05) and no kiosk lockout (AXS-Q04). Every scan is logged.
-- Our three services share one site for SameSite purposes (ADR-0009).
+- No failed-login limit (PUR-Q05) and no kiosk lockout (AXS-Q04). Every scan is stored, and every failed Staff sign-in leaves its 401 line in gunicorn's access log; STAFF_PASSWORD is at least 12 characters (ADR-0019).
+- On localhost every service, and any other page served from localhost on any port, receives all three cookies and counts as the same site (ADR-0009). Limit: run nothing else on localhost while using the stack; no service logs the Cookie or Authorization header; a real deployment uses one host name per service.
 - A revoke that got no answer leaves the old code working until Retry succeeds (PUR-Q12).
+- A cross-site form can change the kiosk's selected room: the browser resends the cached HTTP Basic credentials, and SameSite does not cover them. It cannot scan. Limit: the kiosk shows its room with every result; use the kiosk browser for /checkin only (ADR-0009, AXS-R11).
+- Login and logout CSRF: SameSite does not stop a cross-site POST /login or /logout. Limit: the header always shows the logged-in email with the display name, so it shows which account is logged in; PUR-R01 keeps emails ASCII and display names free of "@", brackets, control and bidi characters, but an ASCII look-alike address such as a@exarnple.com can still pass a quick glance (ADR-0009, PUR-R01, PUR-R02). Upgrade: the Origin check of ADR-0009.
+- The Operator's own bookings get the operator policy: 100% before the end, including after the start, so the Operator can use a room and refund it in full (PUR-R30). Limit: the booking keeps cancel_reason operator_cancel, and the refund is listed on Payment's operator page. Trigger: more than one operator, or host payouts.
+- Hold cycling: one held booking per Member (PUR-R39) does not stop a Member from cancelling a hold and holding the same slot again at once, and sign-up is free and unlimited (PUR-Q04, PUR-Q05). A script, or several throwaway accounts, can keep slots held without paying. Limit: the Operator sees held rows in All bookings and can cancel them. Trigger: public deployment (PUR-Q17).
+- A Member cannot change or reset a password, and cannot have the account erased (PUR-Q16). A leaked password stays valid, and a copied session lasts until its 12 h end. Trigger: an email service (PUR-Q04).
 
 ## Consequences
 
@@ -44,13 +49,13 @@ Also accepted, smaller:
 
 ## Rules and decisions
 
-- Rules: PUR-R01, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PMT-R08, PMT-R09, PMT-R13, PMT-R17, AXS-R09, AXS-R11, AXS-R15.
-- Questions: PUR-Q04, PUR-Q05, PUR-Q12, PMT-Q05, AXS-Q04.
+- Rules: PUR-R01, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PUR-R39, PMT-R08, PMT-R09, PMT-R13, PMT-R17, AXS-R09, AXS-R11, AXS-R15.
+- Questions: PUR-Q04, PUR-Q05, PUR-Q12, PUR-Q16, PUR-Q17, PMT-Q05, AXS-Q04.
 - Decisions: D15, D16, D17.
 - Related: ADR-0008, ADR-0009, ADR-0018, ADR-0019, ADR-0020.
 
 ## Sources
 
-- Spacey main 5a1cf3d: seed flaws F4, F7, F8, F10, F11, F16, A6 (source inspected at 5a1cf3d).
+- Spacey main 5a1cf3d: seed flaws F4, F7, F8, F10, F11, A6 (source inspected at 5a1cf3d).
 - class PR #10 diff at d68631f: Q-ACC-1, Q-ACC-3.
 - course site [syllabus site] fetched 2026-09-30: S80, S112.

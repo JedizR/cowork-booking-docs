@@ -5,47 +5,73 @@ flowchart LR
   subgraph Purchase
     REG["Register /register<br/>email taken: says so (PUR-R01)"]
     LOGIN["Log in /login<br/>one uniform error (PUR-R02)"]
-    SPACES["Spaces /<br/>name, capacity, THB per hour and per 30 min"]
-    GRID["Space /spaces/id?date&blocks<br/>date input, 1-8 blocks, start grid<br/>disabled starts: Too soon, Runs past 20:00, Booked"]
-    FORM["Book form on the space page<br/>party size, note, price THB 450.00<br/>Continue to payment"]
-    BOOKING["Booking /bookings/ref<br/>held: Pay by 10:13 countdown<br/>confirmed: View e-ticket or being prepared<br/>cancelled, expired, completed"]
-    CANCEL["Cancel /bookings/ref/cancel<br/>shows the refund before confirming"]
+    SPACES["Spaces /<br/>name, capacity, THB per hour and per 30 min<br/>empty: No spaces to book yet."]
+    GRID["Space /spaces/id?date&blocks<br/>date input, 1-8 blocks, start choices labelled 09:00-10:30<br/>disabled starts show the reason as text:<br/>Too soon, Runs past 20:00, Booked<br/>no free start: try another date"]
+    FORM["Book form on the space page<br/>start, party size, note, review THB 450.00,<br/>cancellation terms<br/>Continue to payment (pay) or Book (plan, free)"]
+    BOOKING["Booking /bookings/ref<br/>held: Pay by 10:13 countdown<br/>held: payment not started, status unknown,<br/>time to pay has run out<br/>confirmed: View e-ticket or being prepared<br/>plan or free: No payment was taken<br/>started, cancelled, expired, completed"]
+    CANCEL["Cancel /bookings/ref/cancel<br/>reconciles a held booking,<br/>shows the refund before confirming"]
     MINE["My bookings /bookings/mine<br/>upcoming and past"]
-    OPB["Operator bookings /operator/bookings<br/>Cancel, Retry, Reconcile"]
-    OPS["Operator spaces /operator/spaces<br/>create, edit, archive"]
-    OPM["Operator members /operator/members<br/>plan toggle"]
-    DASH["Dashboard /dashboard<br/>last 7 Bangkok days (PUR-R34)"]
+    OPB["Operator bookings /operator/bookings<br/>flagged first, Member name and email, flags<br/>held: pay by, not started, hold ended<br/>Cancel, Retry, Reconcile, Reconcile all held"]
+    OPS["Operator spaces /operator/spaces<br/>create, edit, archive<br/>refused: Cancel its upcoming bookings first: BK-..."]
+    OPM["Operator members /operator/members<br/>plan on or off (sends the target value)"]
+    DASH["Dashboard /dashboard<br/>last 7 Bangkok days, stored statuses<br/>Reconcile all held (PUR-R34)"]
   end
   subgraph Payment
     PAYPAGE["Hosted checkout /pay/ps_...<br/>THB 450.00, BK-7KQ2M9, test-mode banner<br/>card number, MM/YY, CVC, Pay, Back"]
-    DECLINE["Declined: reason inline<br/>session stays open (PMT-R10)"]
-    EXPIRED["Expired: This payment session has expired.<br/>GET 200, Pay 409, no attempt taken (PMT-R11)"]
+    DECLINE["Decline: reason in data-decline-code, attempt stored<br/>card-field error: reason only, no attempt<br/>303 back, session stays open (PMT-R10, PMT-R08)"]
+    EXPIRED["Expired: This payment session has expired.<br/>Nothing was charged. GET 200, Pay 409 (PMT-R11)"]
     PAYOP["Payment operator /operator<br/>totals, needs manual follow-up"]
   end
   subgraph Access
-    TICKET["E-ticket /t/ticket_token<br/>code H7K3-9QXA and QR<br/>Issued, Checked in, Expired, Cancelled overlay"]
-    KIOSK["Kiosk /checkin<br/>select room, scan or type code"]
+    TICKET["E-ticket /t/ticket_token, opens in a new tab<br/>code H7K3-9QXA and QR, no navigation<br/>Issued, Checked in, Expired, Cancelled overlay"]
+    KIOSK["Kiosk /checkin<br/>select room, Meeting Room A (room 1),<br/>scan or type code<br/>401 without STAFF_PASSWORD, No rooms yet,<br/>Select the room first, Unknown room, Enter a code"]
     RESULT["Result in large type<br/>ok, not_open_yet, closed,<br/>revoked, wrong_room, unknown_code"]
   end
-  Member --> REG --> LOGIN --> SPACES --> GRID --> FORM
+  Member --> SPACES --> GRID --> FORM
+  Member --> REG --> LOGIN
+  LOGIN -->|"to the kept page, else /"| SPACES
+  FORM -->|"logged out: Log in to book"| LOGIN
   FORM -->|"pay coverage: 303"| PAYPAGE
   FORM -->|"plan or free: confirmed at once"| BOOKING
-  FORM -->|"flash: Slot just taken"| GRID
-  PAYPAGE -->|"decline"| DECLINE
+  FORM -->|"flash: Slot just taken, held booking first,<br/>input error, Payment unreachable"| GRID
+  FORM -->|"session create no answer"| BOOKING
+  PAYPAGE -->|"decline or card-field error"| DECLINE
   DECLINE -->|"try again"| PAYPAGE
   PAYPAGE -->|"at or after expires_at"| EXPIRED
+  EXPIRED -->|"Back to your booking: cancel_url"| BOOKING
   PAYPAGE -->|"paid: success_url, then 303"| BOOKING
   PAYPAGE -->|"Back: cancel_url"| BOOKING
+  BOOKING -->|"held: Continue to payment (resume)"| PAYPAGE
+  BOOKING -->|"expired, or cancelled while held,<br/>own Member: Book again"| GRID
+  GRID -->|"held-booking banner"| BOOKING
+  MINE -->|"held-booking banner"| BOOKING
+  MINE -->|"No bookings yet: link to /"| SPACES
+  MINE -->|"header: Log out"| SPACES
+  TICKET -->|"close the tab: the booking page stays open"| BOOKING
   LOGIN --> MINE --> BOOKING
+  SPACES -->|"header on every page: My bookings"| MINE
+  SPACES -->|"header: Log in, Sign up"| LOGIN
+  LOGIN -->|"Sign up link"| REG
+  FORM -->|"flash: You already booked this slot,<br/>Time to pay has run out"| BOOKING
+  BOOKING -->|"logged out: Please log in"| LOGIN
+  LOGIN -->|"back to the kept page"| BOOKING
   BOOKING -->|"View e-ticket"| TICKET
   BOOKING -->|"Cancel"| CANCEL
   CANCEL -->|"POST, flash"| BOOKING
+  BOOKING -->|"Retry beside a pending line: flash#59;<br/>operator Retry or Reconcile with return_to=booking"| BOOKING
+  CANCEL -->|"The refund is now ... Confirm again,<br/>or Please confirm the refund again"| CANCEL
+  CANCEL -->|"Keep booking"| BOOKING
   Operator --> OPB
   Operator --> OPS
   Operator --> OPM
   Operator --> DASH
   Operator --> PAYOP
+  PAYOP -->|"needs manual follow-up: Retry in Purchase /operator/bookings"| OPB
   OPB -->|"open"| BOOKING
+  OPB -->|"Cancel: confirm screen"| CANCEL
+  CANCEL -->|"operator POST from the list, flash"| OPB
+  OPB -->|"Retry, Reconcile, Reconcile all held: flash"| OPB
+  DASH -->|"Reconcile all held"| DASH
   Staff --> KIOSK --> RESULT
   RESULT -->|"next scan"| KIOSK
   classDef actor fill:#ffffff,stroke:#334155,color:#0f172a

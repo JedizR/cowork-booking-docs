@@ -17,10 +17,11 @@ Example: the hold-expiry e2e test creates BK-7KQ2M9 at 2026-10-05T10:00:00+07:00
 ## Decision
 
 - Add `clock.py` to every service. `clock.now()` is the only source of time.
-- Pass `clock.now()` into SQL as a parameter. Never use `now()` or `CURRENT_TIMESTAMP` in business logic; audit defaults such as `created_at` are fine.
+- Pass `clock.now()` into SQL as a parameter. Never use `now()` or `CURRENT_TIMESTAMP` in business logic; audit-only defaults are fine, but a time that a rule or a weekly sum reads (paid_at, attempted_at, refunds.created_at, refund_requested_at) is written from `clock.now()` (ARCHITECTURE.md, Data ownership).
 - Add a one-row `test_clock` table to every service's database.
 - Serve `POST /_test/clock {"now": "<ISO with offset>" or null}` with 200 `{"now": ...}` only when TEST_CLOCK_ENABLED is exactly "true". Otherwise answer 404. `null` clears the override.
 - When the flag is off, `clock.now()` returns real time and never reads the table.
+- The override is a fixed instant: `clock.now()` returns exactly the stored value on every read until the next `POST /_test/clock`; it never advances. With the flag on, `clock.now()` reads the `test_clock` row on every call, never a per-process cache, so both gunicorn workers (ADR-0015) see a new instant from the next request. Boundary tests (10:12:59 against 10:13:00, exactly 24 h) then give the same answer on every run, and a test that needs time to pass sets the next instant.
 - Set the flag only in `integration/compose.e2e.yaml`. Never in a Dockerfile, a service `compose.yaml` or `.env.example`.
 - Set the same instant on all three services in every e2e step.
 
@@ -31,6 +32,8 @@ Example: the hold-expiry e2e test creates BK-7KQ2M9 at 2026-10-05T10:00:00+07:00
 - Bad: one more table, route and guard in each service.
 - Bad: a flag set by mistake in production would let anyone move time: lapse holds, open check-in early. The exact-"true" check and the e2e-only override are the guard.
 - Bad: three clocks can disagree if a test forgets one. One e2e helper sets all three.
+- Bad: moving the clock 12 h or more past a login, or back before it, ends that Purchase session (PUR-R03). The e2e helper logs every actor in again after each such move.
+- A "now" without an offset, or not a time at all, gets 400 and changes nothing (D2).
 
 ## Alternatives considered
 

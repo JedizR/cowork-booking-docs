@@ -2,7 +2,7 @@
 
 Every external source this project uses. The class repos are read-only: we cloned them fresh into `${TMPDIR}/cowork-sources` (outside the mother folder) and only ran `git show/log/diff/archive`, `gh pr list/view/diff`, `gh issue view` and `gh api` GET against them.
 
-- Fetch date for every source: **2026-09-30**.
+- Fetch date for every source: **2026-09-30**, except class issue #173, fetched **2026-10-01**.
 - Re-check of the SHAs and PR heads below: 2026-10-01 (`git log` in the fresh clones and `gh pr list --state all`). Nothing had moved.
 - People are named by role only (course instructor, class reviewer, class contributor, Member A/B, Operator, Staff).
 
@@ -44,13 +44,13 @@ All open PRs target `main`. Branch names are not recorded here, because some con
 
 ## 3. Course sites
 
-Fetched with `curl -sL` on 2026-09-30. Text shown only after a click was read from the page's inline script, not from a running browser.
+Fetched with `curl -sL` on 2026-09-30. The URLs are not written here: the hostnames contain a person's name, and people are cited by role only. The sha256 and byte count pin each page. Text shown only after a click was read from the page's inline script, not from a running browser.
 
 | Site | URL | HTTP | Bytes | sha256 | Headers | Used for | Evidence |
 |---|---|---|---|---|---|---|---|
-| [extraction site] Extraction ("Untangle before you split") | https://cs403bkk-extraction.quick.prokopov.me/ | 200 | 14725 | `0be1c694c763a5f250f94bf14caa1b625edf30df26b2c3ad3fc99049ca02085d` | ETag `"510dbb078ecada0891476699906a9c9d"`, Last-Modified Wed, 30 Sep 2026 02:48:37 GMT | Course target: ownership, call flow, contracts, access-credential policy | course site [extraction site] fetched 2026-09-30 |
-| [contexts site] Contexts ("One booking. Three models.") | https://cs403bkk-contexts.quick.prokopov.me/ | 200 | 9691 | `67f9899fe1cdef0e9d4ccef95b7f77e071b883f44b5301e57774f247a0adb3b8` | HEAD returns 405, so no ETag or Last-Modified | Shared references, re-pricing, revoke, "Integrations / Locks" | course site [contexts site] fetched 2026-09-30 |
-| [syllabus site] Syllabus | https://cs403bkk.quick.prokopov.me/ | 200 | 19461 | `e3286484fa8088ab7f520a645249f3f888f4d50939e23bf3746f29b881e32307` | ETag `65436f1b3949aacf3b8d00b75f5773c6`, Last-Modified Mon, 14 Sep 2026 12:17:29 GMT | Teams, REST, artefacts, grading, cancellation, three services vs monolith | course site [syllabus site] fetched 2026-09-30 |
+| [extraction site] Extraction ("Untangle before you split") | Kept in the private build brief (COURSE_SITES): its hostname contains a person's name | 200 | 14725 | `0be1c694c763a5f250f94bf14caa1b625edf30df26b2c3ad3fc99049ca02085d` | ETag `"510dbb078ecada0891476699906a9c9d"`, Last-Modified Wed, 30 Sep 2026 02:48:37 GMT | Course target: ownership, call flow, contracts, access-credential policy | course site [extraction site] fetched 2026-09-30 |
+| [contexts site] Contexts ("One booking. Three models.") | Kept in the private build brief (COURSE_SITES): its hostname contains a person's name | 200 | 9691 | `67f9899fe1cdef0e9d4ccef95b7f77e071b883f44b5301e57774f247a0adb3b8` | HEAD returns 405, so no ETag or Last-Modified | Shared references, re-pricing, revoke, "Integrations / Locks" | course site [contexts site] fetched 2026-09-30 |
+| [syllabus site] Syllabus | Kept in the private build brief (COURSE_SITES): its hostname contains a person's name | 200 | 19461 | `e3286484fa8088ab7f520a645249f3f888f4d50939e23bf3746f29b881e32307` | ETag `65436f1b3949aacf3b8d00b75f5773c6`, Last-Modified Mon, 14 Sep 2026 12:17:29 GMT | Teams, REST, artefacts, grading, cancellation, three services vs monolith | course site [syllabus site] fetched 2026-09-30 |
 
 Links between the sites: the extraction page links to the contexts page and to the class rules `RULES.md`. The contexts page links to neither of the others. No root page links to the syllabus (deeper pages were not crawled).
 
@@ -85,7 +85,7 @@ Every inventory row carries exactly one of these tags. They are never interchang
 | `live journey verified` | We drove a running app. (Not used in M0.) |
 | `class PR #n diff at <head-short-sha>` | The text of a class rules PR at its head. It says what the PR claims, not what is true. |
 | `class PR #n discussion` | Reviews, inline comments or the body of a class rules PR. Run results claimed there are the PR author's or reviewer's, not ours. |
-| `course site [label] fetched 2026-09-30` | Verbatim text of a course page on that date; labels map to the URLs in the course-sites table above. |
+| `course site [label] fetched 2026-09-30` | Verbatim text of a course page on that date; labels map to the private brief's COURSE_SITES. The sha256 and byte count in the course-sites table pin the content. |
 | `class issue #n discussion` | Text of a Spacey GitHub issue (only #173). |
 
 Policy status is separate from evidence. Everything in `inventory/` is either Observed Spacey behaviour, class-record text or course guidance. None of it is project policy until M1 decides it.

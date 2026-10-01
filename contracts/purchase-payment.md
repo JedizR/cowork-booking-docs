@@ -26,13 +26,13 @@ No real money moves. The card outcomes come from the test-card table (ADR-0018, 
 |---|---|---|
 | `PAYMENT_INTERNAL_URL` (Purchase env) | `http://payment:8000` | Purchase, for every API call |
 | `PUBLIC_URL` (Payment env) | `http://localhost:8002` | Payment, to build the session `url` for the browser |
-| `PAYMENT_PUBLIC_URL` (Purchase env) | `http://localhost:8002` | Purchase, for links it prints itself |
+| `PAYMENT_PUBLIC_URL` (Purchase env) | `http://localhost:8002` | Purchase, to send the browser to `PAYMENT_PUBLIC_URL/pay/<stored session id>` (also `payment_url` in its JSON) and for the "Payment totals" link; Purchase never redirects to the `url` in Payment's answer (PUR-R23) |
 
 Authentication (ADR-0019):
 
-- **API** (`/payment-sessions*`, `/refunds`): send `Authorization: Bearer <PAYMENT_API_TOKEN>`. A missing token, a wrong token or another scheme gets 401 before any validation or lookup, and nothing changes (PMT-R01). Payment compares in constant time. Payment refuses to start when `PAYMENT_API_TOKEN` is unset or empty.
+- **API** (`/payment-sessions*`, `/refunds`): send `Authorization: Bearer <PAYMENT_API_TOKEN>`. A missing token, a wrong token or another scheme gets 401 before any validation or lookup, and nothing changes (PMT-R01). Payment compares in constant time. Payment refuses to start when `PAYMENT_API_TOKEN` is unset, empty or shorter than 32 characters (PMT-R01, ADR-0019).
 - **Hosted page** (`/pay/<id>`): no login and no token. The 128-bit session id is the bearer link (PMT-R07, PMT-Q05).
-- **Operator page** (`/operator`): HTTP Basic, user `operator`, password `OPERATOR_PASSWORD`. Payment checks only the password (PMT-R17).
+- **Operator page** (`/operator`): HTTP Basic, user `operator`, password `OPERATOR_PASSWORD`. Payment checks only the password and refuses to start when `OPERATOR_PASSWORD` is unset, empty or shorter than 12 characters (PMT-R17).
 - `/health` and `/_test/clock` need no credentials.
 
 ## 3. Conventions
@@ -40,7 +40,7 @@ Authentication (ADR-0019):
 - JSON in and out, `Content-Type: application/json`.
 - Money: integer satang, field names end in `_satang`, currency always `"THB"` (D1, PUR-R18). 45000 is THB 450.00.
 - Times: ISO 8601 with an offset. Payment answers in Bangkok time, `+07:00` (D2). A time without an offset gets 400.
-- IDs: session `ps_`, attempt `pa_`, refund `re_`, each with 128 random bits (D22).
+- IDs: prefixes session `ps_`, attempt `pa_`, refund `re_` (D22). The session id is `ps_` + `secrets.token_urlsafe(16)`, 128 random bits (PMT-R02, PMT-T02, ADR-0019): it is the bearer link to the hosted page, so it must be unguessable. `pa_` and `re_` ids need only be unique.
 - Unknown request fields are ignored. Consumers ignore unknown response fields.
 - Errors always have this shape. Only `GET /health` keeps the seed shape, `{"status": "error", "error": "database unreachable"}` (section 4.8):
 
@@ -113,7 +113,7 @@ Implements: PMT-R01, PMT-R02, PMT-R03, PMT-R04, PMT-R18. Consumer side: PUR-R17,
 
 ### 4.3 GET /payment-sessions/{id}
 
-Read one session. Purchase calls it whenever it reconciles a held booking: booking page, success_url return, My bookings, the pre-insert sweep, the Member's own lapsed hold, and the Operator's Reconcile (PUR-R22, PUR-R24, PUR-R39).
+Read one session. Purchase calls it whenever it reconciles a held booking. The reconcile points (PUR-R24): the booking page and its return URL, GET /api/bookings/<ref>, My bookings (the page and GET /api/bookings/mine), the cancel confirm screen, the pre-insert sweep, the Member's own lapsed holds (PUR-R39), and the Operator's Reconcile of one booking or of all held. The POST cancel uses expire in place of this read (PUR-R31).
 
 | Status | Body | When |
 |---|---|---|
@@ -178,7 +178,7 @@ Responses:
 | 409 | Error `refund_conflict` | Same key, different amount |
 | 409 | Error `refund_exceeds_collected` | Over the balance. An unpaid session collected 0 |
 
-Order of checks: token (401), fields (400), session (404), reference (409), repeat key (200 or 409), balance (409), insert (201). The balance check and the insert run in one transaction with the session row locked (PMT-R15).
+Order of checks: token (401), fields (400), session (404), reference (409); then, with the session row locked (`SELECT ... FOR UPDATE`), the repeat key (200 or 409), the balance (409) and the insert (201), all in one transaction (PMT-R14, PMT-R15). Locking before the repeat key means two identical requests that arrive together get one 201 and one 200 with the same `re_` id, never a 409.
 
 Outcome: for a session paid with test card 4000000000005126, the first refund stored for that session fails and later ones succeed. Every other paid session refunds successfully (PMT-R16). There is no pending state.
 
@@ -194,9 +194,9 @@ GET `/pay/<id>`:
 
 | Session | Status | Page |
 |---|---|---|
-| open | 200 | "THB 450.00", "Booking BK-7KQ2M9", the description, "Pay by 10:13 (12 min left)", the test-mode banner with the 6 test cards, the card form, Pay, and Back (a link to `cancel_url`) |
+| open | 200 | "THB 450.00", "Booking BK-7KQ2M9", the description, "Pay by 10:13 (12 min left)" with a `data-seconds-left` attribute, the seconds from `clock.now()` to `expires_at` at render time (a few lines of inline script count it down and, at zero, disable Pay and show "Time to pay has run out"; the browser clock is never read; the server check decides), the test-mode banner with the 6 test cards, the card form, Pay, and Back (a link to `cancel_url`). After a decline or a card-field error, the flashed reason shows here once |
 | complete | 200 | "Paid" and a "Return to booking" link to `success_url?session_id=<id>`. No form |
-| expired, or `clock.now()` at or after `expires_at` | 200 | "This payment session has expired." and Back. No form |
+| expired, or `clock.now()` at or after `expires_at` | 200 | "This payment session has expired. Nothing was charged." and "Back to your booking" (a link to `cancel_url`). No form |
 | unknown id | 404 | Not-found page. No booking data |
 
 POST `/pay/<id>`, form fields `card_number`, `expiry` (MM/YY), `cvc`:
@@ -204,13 +204,15 @@ POST `/pay/<id>`, form fields `card_number`, `expiry` (MM/YY), `cvc`:
 | Case | Status | Result |
 |---|---|---|
 | Success card | 303 | `Location: <success_url>?session_id=<id>`. Session complete and paid |
-| Decline card | 200 | The page again with the reason (PMT-T09) inside an element `data-decline-code="<code>"`. Session stays open for another try |
-| Card fields fail the check (PMT-R08) | 200 | The page again with the message, e.g. "card_number must be 13-19 digits". No attempt stored. No `data-decline-code` element |
-| At or after `expires_at`, or session expired | 409 | Page "This payment session has expired." No attempt stored, no charge |
+| Decline card | 303 | `Location: /pay/<id>`. The attempt is stored; the reason (PMT-T09) is flashed and the GET shows it inside an element `data-decline-code="<code>"`. Session stays open for another try |
+| Card fields fail the check (PMT-R08) | 303 | `Location: /pay/<id>`. The message is flashed, e.g. "Card number must be 13 to 19 digits", and the GET shows it with no `data-decline-code` element. No attempt stored |
+| At or after `expires_at`, or session expired | 409 | The same expired page as the GET: "This payment session has expired. Nothing was charged." and "Back to your booking" (a link to `cancel_url`). No attempt stored, no charge |
 | Session already complete | 303 | To `success_url?session_id=<id>`. No attempt stored, no charge (PMT-R12) |
 | Unknown id | 404 | Not-found page |
 
-A decline and a card-field error are a 200 re-render with the reason inline: no redirect, no flash, no query string. This replaces "303 to /pay/<id>; flash" in PMT-R10 row 1 and PMT-R08 rows 3, 4, 7 and 8; RULES.md follows at M3. The 409 is the status for PMT-R11.
+Order of checks for POST: unknown id (404); complete (303 to `success_url`, no attempt); expired or at or after `expires_at` (409); card fields (303 with the flash); then the attempt, inside the session lock (PMT-R12).
+
+A decline and a card-field error follow post, redirect, get: 303 back to `/pay/<id>`, and the GET shows the flashed reason inline, carried by the `payment_session` cookie (PMT-R10, PMT-R19, D28). No query string carries it, and a reload never re-posts the card fields. `requests.Session` follows the redirect, so the marker stays testable. The 409 is the status for PMT-R11.
 
 After any answer the card fields are empty. The number, expiry and CVC never appear in a URL, a flash, a log line or the database. Only brand and last4 are stored (PMT-R13, ADR-0020).
 
@@ -218,12 +220,12 @@ Implements: PMT-R07, PMT-R08, PMT-R09, PMT-R10, PMT-R11, PMT-R12, PMT-R13, PMT-R
 
 ### 4.7 GET /operator (Operator)
 
-HTTP Basic, user `operator`. Without the right password: 401 with `WWW-Authenticate: Basic`. The page lists sessions, attempts (brand and last4 only) and refunds, and shows collected, refunded, net and "estimated platform commission (20% of net)". Each failed refund shows "needs manual follow-up" until a later attempt for the same session succeeds (PMT-R17).
+HTTP Basic, user `operator`. Without the right password: 401 with `WWW-Authenticate: Basic`. The page lists sessions (booking_reference, amount, status, paid_at), attempts (booking_reference, brand and last4 only, result, decline code, attempted_at) and refunds (booking_reference, attempt, amount, reason, status, created_at), each in a fixed order: sessions newest paid_at first, then unpaid sessions newest created first; attempts newest attempted_at first; refunds newest created_at first. paid_at, attempted_at and the refund's created_at are business times written from `clock.now()` in the pay or refund transaction, never a database default (D27), so a week can be summed by hand under the test clock too. The page shows no space per session: the host share per room is a manual join with Purchase's all-bookings list by booking reference (BUSINESS_MODEL.md section 6). It shows collected, refunded, net and "estimated platform commission (20% of net)", all-time (PMT-Q03). Each failed refund shows "needs manual follow-up" with the text "Retry it from Purchase: All bookings" until a later attempt for the same session succeeds (PMT-R17). Markers are in section 8.
 
 ### 4.8 GET /health and POST /_test/clock
 
 - `GET /health`: 200 `{"status": "ok", "revision": "<APP_REVISION>"}`; 503 `{"status": "error", "error": "database unreachable"}`.
-- `POST /_test/clock` `{"now": "2026-10-05T10:13:00+07:00"}` or `{"now": null}`: 200 `{"now": "2026-10-05T10:13:00+07:00"}` (or `{"now": null}`) only when `TEST_CLOCK_ENABLED` is exactly `true`. Otherwise 404 and nothing stored (PMT-R20, D27, ADR-0013). There is no other test hook: a `force_failure` field is ignored.
+- `POST /_test/clock` `{"now": "2026-10-05T10:13:00+07:00"}` or `{"now": null}`: 200 `{"now": "2026-10-05T10:13:00+07:00"}` (or `{"now": null}`) only when `TEST_CLOCK_ENABLED` is exactly `true`. Otherwise 404 and nothing stored, and `clock.now()` never reads `test_clock` (PMT-R20, D27, ADR-0013). A `now` without an offset gets 400 and nothing is stored. There is no other test hook: a `force_failure` field is ignored.
 
 ## 5. Examples
 
@@ -325,7 +327,7 @@ HTTP/1.1 401 Unauthorized
 
 ### 5.3 Failure
 
-A decline is not a final outcome. Member A pays with 4000000000000002 at 10:02. Payment answers 200 with the page again and `<p data-decline-code="generic_decline">Your card was declined.</p>`. Purchase then reads (PMT-R10):
+A decline is not a final outcome. Member A pays with 4000000000000002 at 10:02. Payment answers `303 Location: /pay/ps_Q7mZ3xK9vT2bN8rL4wYc1A`; the GET then shows `<p data-decline-code="generic_decline">Your card was declined.</p>` once, carried by the `payment_session` flash (PMT-R10). Purchase then reads:
 
 ```http
 GET /payment-sessions/ps_Q7mZ3xK9vT2bN8rL4wYc1A
@@ -447,7 +449,7 @@ Double-click on Pay: the second POST waits on the row lock, sees `complete`, sto
 
 ### 5.5 Coverage skips collection
 
-**No call is made to Payment.** Member B (plan_active true) books Meeting Room A 2026-10-07 11:30-13:00, and Member A books Community Table (THB 0 per hour). Both bookings are confirmed at once, with coverage `plan` or `free` (PUR-R19, PUR-R20). Purchase sends no POST /payment-sessions, no GET, no expire on cancel and no POST /refunds. The cancel refund is 0 and the screen says "No payment was taken" (PUR-R30). Payment has no record of these bookings, and its operator totals do not include them (PMT-R04, PMT-R17).
+**No call is made to Payment.** Member B (plan_active true) books Meeting Room A 2026-10-07 10:30-11:30 (BK-3MZ8QT, THB 300.00), and Member A books Community Table (THB 0 per hour). Both bookings are confirmed at once, with coverage `plan` or `free` (PUR-R19, PUR-R20). Purchase sends no POST /payment-sessions, no GET, no expire on cancel and no POST /refunds. The cancel refund is 0 and the screen says "No payment was taken" (PUR-R30). Payment has no record of these bookings, and its operator totals do not include them (PMT-R04, PMT-R17).
 
 For the same reason Payment refuses `amount_satang` 0 with 400 (5.2). A card form for THB 0.00 cannot exist.
 
@@ -474,18 +476,24 @@ For the same reason Payment refuses `amount_satang` 0 with 400 (5.2). A card for
 - Every call uses `timeout=5` seconds (D28, PUR-R35).
 - A timeout, a connection error or a 5xx answer means "unreachable". Purchase stores no result for it.
 - Purchase never calls Payment while a database transaction is open. It commits first, calls, then stores the answer in a new short transaction (PUR-R35, D13).
-- Purchase makes one attempt per call inside a request. It does not loop or sleep. The retry happens the next time the booking is touched: the booking page, My bookings, the pre-insert sweep or the Operator's Retry and Reconcile (PUR-R24, PUR-R32).
+- Purchase makes one attempt per call inside a request. It does not loop or sleep. The next touch retries:
+  - the reconcile read (GET) at the reconcile points of PUR-R24: the booking page and its return URL, GET /api/bookings/<ref>, My bookings (the page and GET /api/bookings/mine), the cancel confirm screen, the pre-insert sweep, the Member's own lapsed holds (PUR-R39), and the Operator's Reconcile of one booking or of all held; the POST cancel uses expire in place of the GET (PUR-R31);
+  - a pending refund: the booking page, the owner's Retry and the Operator's Retry (PUR-R32).
 - Retries are safe because every write has a natural key: `booking_reference` for a session, the session id for expire, `(payment_session_id, attempt)` for a refund (ADR-0014). A retry resends the same body.
-- Any other 4xx (400, 401, 404, 409) is a defect in Purchase or its config. Purchase logs the operation, the booking reference and the status (never the token), stores nothing and shows the same "try again" message (PUR-Q09).
+- Any other 4xx (400, 401, 404, 409) is a defect in Purchase or its config. Purchase logs the operation, the booking reference and the status (never the token), stores nothing and handles the step like "unreachable": pending, or "try again" where the request needs the answer (PUR-R35).
 - Payment never retries anything and never calls back (PMT-R18, ADR-0004).
 
 ## 8. Test-observable page markers
 
 | Page | Marker | Values |
 |---|---|---|
-| POST `/pay/<id>` decline (200) | element with `data-decline-code="<code>"` holding the reason text | `generic_decline`, `insufficient_funds`, `expired_card`, `processing_error` (PMT-T09) |
-| POST `/pay/<id>` at or after `expires_at` (409) | page text "This payment session has expired." | |
-| GET `/operator` | text "needs manual follow-up" beside each failed refund | |
+| GET `/pay/<id>` after a decline (the 303 target) | element with `data-decline-code="<code>"` holding the reason text | `generic_decline`, `insufficient_funds`, `expired_card`, `processing_error` (PMT-T09) |
+| POST `/pay/<id>` at or after `expires_at` (409) | page text "This payment session has expired. Nothing was charged." and a "Back to your booking" link | |
+| GET `/operator`, session rows | `data-session-id="ps_..."`, `data-booking-reference="BK-7KQ2M9"` | |
+| GET `/operator`, attempt rows | `data-session-id`, `data-booking-reference`, `data-attempt-result`, and on a declined row `data-decline-code` | `succeeded`, `declined`; the codes of PMT-T09 |
+| GET `/operator`, refund rows | `data-session-id`, `data-booking-reference`, `data-refund-attempt="1"`, `data-refund-status` | `succeeded`, `failed`. A test scopes rows by `data-booking-reference`, because the shared stack keeps earlier runs' rows |
+| GET `/operator`, follow-up | element `data-follow-up="BK-3HT8WD"` with the text "needs manual follow-up", present only while that failed refund has no later succeeded attempt | the booking reference |
+| GET `/operator`, totals | `data-collected-satang`, `data-refunded-satang`, `data-net-satang`, `data-commission-satang` | integers; the e2e suite asserts before-and-after deltas, because the shared stack is never reset |
 
 ## 9. Versioning
 

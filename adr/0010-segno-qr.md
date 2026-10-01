@@ -19,6 +19,7 @@ Example: the e-ticket for BK-7KQ2M9 shows H7K3-9QXA in large text and a QR that 
 - Render the QR on the server as inline SVG inside the e-ticket HTML. No image file, no external QR service, no client JavaScript.
 - Encode exactly the displayed ticket code, `XXXX-XXXX`, and nothing else: no URL, no ticket token, no booking reference.
 - Keep both forms: the large text and the QR carry the same credential, so a Member can read it out if the scanner fails.
+- Keep Jinja autoescape on in every template of all three services. segno's SVG, built from the stored ticket code, is the only output marked safe (`Markup` or the `safe` filter); free text such as display_name, note, space_name and description is always escaped.
 
 ## Consequences
 

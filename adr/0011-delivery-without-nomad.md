@@ -16,11 +16,11 @@ Example: a PR to `cowork-booking-payment` runs pytest against a postgres:16 serv
 
 - Give each service repo one workflow, `.github/workflows/ci.yml`: pytest against postgres:16, then `docker build`. No registry push, no deploy step.
 - Give the docs repo `docs.yml`: `scripts/check_docs.py` and the diagram renders.
-- Deploy each service alone from its own `Dockerfile` and `compose.yaml`: app on 8001, 8002 or 8003 (container port 8000), its database on 5441, 5442 or 5443.
+- Deploy each service alone from its own `Dockerfile` and `compose.yaml`: app on 8001, 8002 or 8003 (container port 8000), its database on 5441, 5442 or 5443. Publish every port on 127.0.0.1 only (`"127.0.0.1:8001:8000"`, `"127.0.0.1:5441:5432"`): the DB port exists only so pytest on the host can reach it. Take POSTGRES_PASSWORD from env, never user=password.
 - Build all three for e2e from the docs repo's `integration/compose.yaml`, from sibling folders.
 - Release with a git tag (v1.0.0). Roll back by redeploying the previous tag with that repo's compose file.
 - Delete `delivery.yml` and `deploy/` before the seed commit (ADR-0006).
-- Read secrets from env at run time. Refuse to start without SECRET_KEY. Commit only `.env.example`, and never set TEST_CLOCK_ENABLED in a Dockerfile or `.env.example`.
+- Read secrets from env at run time. Refuse to start without SECRET_KEY. Commit only `.env.example`, with every secret left empty so a copied example fails fast, and never set TEST_CLOCK_ENABLED in a Dockerfile, a service `compose.yaml` or `.env.example`.
 
 ## Consequences
 

@@ -3,15 +3,15 @@ flowchart LR
   subgraph Purchase
     MEMBERS["members<br/>id PK<br/>email UNIQUE, lower-cased<br/>display_name, password_hash<br/>is_operator, plan_active<br/>created_at"]
     SPACES["spaces<br/>id PK<br/>name, capacity<br/>hourly_rate_satang BIGINT<br/>archived_at"]
-    BOOKINGS["bookings<br/>id PK, reference UNIQUE BK-...<br/>member_id FK, space_id FK<br/>start_time, end_time, blocks<br/>party_size, note<br/>agreed_price_satang BIGINT, coverage<br/>status, hold_expires_at<br/>payment_session_id, payment_outcome<br/>(JSON payment_status)<br/>cancel_reason, refund_reason<br/>refund_amount_satang, refund_status, refund_attempt<br/>grant_status, grant_id, ticket_url<br/>EXCLUDE overlap WHERE status held or confirmed"]
+    BOOKINGS["bookings<br/>id PK, reference UNIQUE BK-...<br/>member_id FK, space_id FK<br/>start_time, end_time, blocks<br/>party_size, note<br/>agreed_price_satang BIGINT, coverage<br/>status, created_at, cancelled_at (clock.now())<br/>hold_expires_at<br/>payment_session_id, payment_outcome<br/>(JSON payment_status)<br/>cancel_reason, refund_reason<br/>refund_amount_satang, refund_status, refund_attempt<br/>refund_requested_at (clock.now())<br/>grant_status, grant_id, ticket_url<br/>EXCLUDE overlap WHERE status held or confirmed"]
     P_CLOCK["test_clock<br/>one row, now or null"]
     BOOKINGS -->|"member_id FK"| MEMBERS
     BOOKINGS -->|"space_id FK"| SPACES
   end
   subgraph Payment
-    SESSIONS["payment_sessions<br/>id PK ps_...<br/>booking_reference UNIQUE<br/>amount_satang BIGINT, currency THB<br/>description, success_url, cancel_url<br/>expires_at, status, payment_status"]
-    ATTEMPTS["payment_attempts<br/>id PK pa_...<br/>session_id FK<br/>card_brand, card_last4<br/>outcome, decline_code, created_at"]
-    REFUNDS["refunds<br/>id PK re_...<br/>payment_session_id FK<br/>booking_reference<br/>amount_satang BIGINT, reason<br/>attempt, status<br/>UNIQUE (payment_session_id, attempt)"]
+    SESSIONS["payment_sessions<br/>id PK ps_...<br/>booking_reference UNIQUE<br/>amount_satang BIGINT, currency THB<br/>description, success_url, cancel_url<br/>expires_at, status, payment_status<br/>created_at (clock.now() in the create transaction)<br/>paid_at (clock.now() in the pay transaction)"]
+    ATTEMPTS["payment_attempts<br/>id PK pa_...<br/>session_id FK<br/>card_brand, card_last4<br/>outcome, decline_code<br/>attempted_at (clock.now())"]
+    REFUNDS["refunds<br/>id PK re_...<br/>payment_session_id FK<br/>booking_reference<br/>amount_satang BIGINT, reason<br/>attempt, status<br/>created_at (clock.now(), not a default)<br/>UNIQUE (payment_session_id, attempt)"]
     M_CLOCK["test_clock<br/>one row, now or null"]
     ATTEMPTS -->|"session_id FK"| SESSIONS
     REFUNDS -->|"payment_session_id FK"| SESSIONS
@@ -24,6 +24,7 @@ flowchart LR
   end
   BOOKINGS <-.->|"booking_reference, payment_session_id<br/>reference (not FK)"| SESSIONS
   GRANTS -.->|"booking_reference<br/>reference (not FK)"| BOOKINGS
+  REFUNDS -.->|"booking_reference<br/>reference (not FK)"| BOOKINGS
   GRANTS -.->|"member_ref<br/>reference (not FK)"| MEMBERS
   GRANTS -.->|"space_id<br/>reference (not FK)"| SPACES
   classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f

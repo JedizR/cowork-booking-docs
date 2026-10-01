@@ -21,7 +21,7 @@ To change a decision, add a new ADR that supersedes the old one, and set the old
 | [ADR-0013](0013-test-clock.md) | One test clock, off by default | Accepted, 2026-10-01 | PUR-R38, PMT-R20, AXS-R19, PUR-R10, PUR-R12, PUR-R30, PMT-R05, PMT-R08, PMT-R11, AXS-R13, AXS-R16 |
 | [ADR-0014](0014-natural-key-idempotency.md) | Natural keys make repeats safe; no Idempotency-Key header | Accepted, 2026-10-01 | PUR-R21, PUR-R22, PUR-R29, PUR-R33, PUR-R39, PMT-R03, PMT-R06, PMT-R12, PMT-R14, PMT-R15, AXS-R01, AXS-R02, AXS-R05, AXS-R17 |
 | [ADR-0015](0015-two-workers-one-connection.md) | Two gunicorn workers, one database connection each | Accepted, 2026-10-01 | PUR-R22, PUR-R25, PUR-R32, PUR-R35, PMT-R06, PMT-R12, PMT-R15 |
-| [ADR-0016](0016-accepted-security-trade-offs.md) | Accepted security trade-offs | Accepted, 2026-10-01 | PUR-R01, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PMT-R08, PMT-R09, PMT-R13, PMT-R17, AXS-R09, AXS-R11, AXS-R15 |
+| [ADR-0016](0016-accepted-security-trade-offs.md) | Accepted security trade-offs | Accepted, 2026-10-01 | PUR-R01, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PUR-R39, PMT-R08, PMT-R09, PMT-R13, PMT-R17, AXS-R09, AXS-R11, AXS-R15 |
 | [ADR-0017](0017-mock-lock.md) | The lock is mocked | Accepted, 2026-10-01 | AXS-R04, AXS-R13, AXS-R14, AXS-R15, AXS-R16, AXS-R17 |
 | [ADR-0018](0018-mock-checkout-test-cards.md) | Hosted mock checkout with test cards | Accepted, 2026-10-01 | PMT-R02, PMT-R04, PMT-R07, PMT-R08, PMT-R09, PMT-R10, PMT-R11, PMT-R12, PMT-R16, PUR-R20, PUR-R23 |
 | [ADR-0019](0019-service-authentication.md) | Service authentication | Accepted, 2026-10-01 | PMT-R01, AXS-R04, PMT-R17, AXS-R11, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PUR-R06, PUR-R35, PMT-R07, AXS-R09 |

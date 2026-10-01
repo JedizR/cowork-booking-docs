@@ -178,6 +178,7 @@ paths:
         - name: ticket_token
           in: path
           required: true
+          description: Issued tokens are secrets.token_urlsafe(16), 22 characters matching ^[A-Za-z0-9_-]{22}$; any unknown value, well-formed or not, gets 404, never 400 (no pattern here on purpose)
           schema:
             type: string
           example: q3Vt9XbLk2Rm8PzW4nHc7A
@@ -206,8 +207,13 @@ paths:
       operationId: showKiosk
       summary: Kiosk page with the room list, the code input, the last result and the last 10 scans
       description: |
-        After a scan the result element is data-result="ok" (or not_open_yet, closed,
-        revoked, wrong_room, unknown_code), shown once (flashed). Rules AXS-R11, AXS-R14, AXS-R15.
+        After a scan the flashed result element is data-result="ok" (or not_open_yet, closed,
+        revoked, wrong_room, unknown_code), shown once; only that element carries data-result.
+        The kiosk carries data-selected-space-id; each of the last 10 scan rows carries
+        data-scan-result and data-scan-last4, newest first by scan time, then scan id.
+        Each room is labelled with its space_name and room number, "Meeting Room A (room 1)", listed by space_id ascending.
+        With no grant stored: "No rooms yet: a room appears after its first ticket is issued"
+        and no code input. Rules AXS-R11, AXS-R14, AXS-R15.
       security:
         - basicAuth: []
       responses:
@@ -227,9 +233,14 @@ paths:
       description: |
         Two POSTs: first space_id alone selects the room (stored in access_session), then
         code alone scans at that room with the same cookie. A POST with code scans at the
-        room stored in access_session; a space_id in the same POST is ignored, so a
-        cross-site form (no SameSite=Lax cookie) cannot pick the room. With no room
-        selected the flash is "Select the room first" and no scan is stored. Order: unknown_code, revoked, wrong_room, then the window.
+        room stored in access_session; a space_id sent with a code is ignored, so a cross-site
+        scan (no SameSite=Lax cookie) has no room and is refused ("Select the room first"). A
+        cross-site room change (space_id, no code) is possible and accepted: the browser resends
+        the cached Basic credentials (ADR-0016, AXS-R11 row 10). With no room
+        selected the flash is "Select the room first" and no scan is stored. A space_id not in
+        the room list gets "Unknown room" and the selection does not change. A code blank after
+        normalisation gets "Enter a code" and no scan is stored. Order: unknown_code, revoked,
+        wrong_room, then the window.
         Rules AXS-R11, AXS-R12, AXS-R13, AXS-R14, AXS-R15, AXS-R16.
       security:
         - basicAuth: []
@@ -319,8 +330,14 @@ paths:
                 $ref: '#/components/schemas/Clock'
               example:
                 now: '2026-10-07T09:00:00+07:00'
+        '400':
+          description: A now that is not ISO 8601 with an offset; nothing stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
-          description: TEST_CLOCK_ENABLED is not exactly "true"; nothing stored
+          description: TEST_CLOCK_ENABLED is not exactly "true"; nothing stored. With the flag off, clock.now() never reads test_clock
 components:
   securitySchemes:
     bearerAuth:
@@ -374,7 +391,7 @@ components:
               code: unauthorized
               message: unauthorized
     BasicChallenge:
-      description: Missing or wrong Staff password; nothing logged
+      description: Missing or wrong Staff password; no scan stored (gunicorn's access log keeps the 401 line)
       headers:
         WWW-Authenticate:
           schema:

@@ -11,7 +11,7 @@ Example: Purchase calls POST /grants on Access with `Authorization: Bearer <ACCE
 - Seed flaw F7: no route checks who is asking; space admin and unlock are anonymous. F8: the revenue dashboard is public. F10: deploy runs with the public default SECRET_KEY (app.py:20). Source inspected at 5a1cf3d.
 - There is no Identity service (ADR-0002), so Payment and Access cannot check a Purchase login.
 - Only Purchase calls other services (ADR-0004), so machine trust runs one way.
-- The integration stack publishes ports on localhost, so the network is not a trust boundary.
+- The stacks publish their ports on 127.0.0.1 only (ADR-0011), but any local process can reach them, so the network is not a trust boundary.
 - No new dependency: no JWT library.
 
 ## Decision
@@ -22,13 +22,14 @@ Example: Purchase calls POST /grants on Access with `Authorization: Bearer <ACCE
 | Purchase to Access API (/grants) | Bearer token header | ACCESS_API_TOKEN | 401 before any validation or lookup |
 | Members and the Operator on Purchase pages and JSON API | Cookie login, `purchase_session`, 12 h | Password hash; SECRET_KEY signs the cookie | Login step (form) or 401 (JSON); 404 to a non-owner |
 | Operator on Payment /operator | HTTP Basic, user `operator` | OPERATOR_PASSWORD | 401 with a Basic challenge |
-| Staff on Access /checkin | HTTP Basic, user `staff` | STAFF_PASSWORD | 401 |
+| Staff on Access /checkin | HTTP Basic, user `staff` | STAFF_PASSWORD | 401 with WWW-Authenticate: Basic |
 | Link holder on /pay/<id> and /t/<ticket_token> | The unguessable id in the URL | None | 404 for an unknown id |
 
-- Compare every secret in constant time. For HTTP Basic only the password is checked; the user names are what the READMEs tell people to type.
-- Refuse to start when a token or password is unset or empty.
-- Let tokens flow one way: Purchase holds both; each provider holds only its own.
-- Keep secrets in env. Commit only `.env.example`, with placeholders.
+- Compare every secret in constant time on UTF-8 bytes: `hmac.compare_digest(given.encode("utf-8"), expected.encode("utf-8"))`. Comparing str values raises TypeError on a non-ASCII character, which would turn a bad header into a 500 instead of a 401. For HTTP Basic only the password is checked; the user names are what the READMEs tell people to type.
+- Refuse to start when a token or password is unset or empty ("<NAME> is required"), when SECRET_KEY, PAYMENT_API_TOKEN or ACCESS_API_TOKEN is shorter than 32 characters ("<NAME> must be at least 32 characters"), when OPERATOR_PASSWORD or STAFF_PASSWORD is shorter than 12 ("<NAME> must be at least 12 characters"), or when SECRET_KEY is the seed's public default "dev-secret-key-not-for-production" ("SECRET_KEY is the public seed default": it is 33 characters, so the length check alone would pass it), so a guessable "changeme" or the published seed key never starts a service. <NAME> is the variable's name.
+- Let tokens flow one way: Purchase holds both; each provider holds only its own. Each container gets only the variables in its own env table (ARCHITECTURE.md): the integration compose names each variable per service and never loads one shared env file into all three.
+- Give each service its own random SECRET_KEY, so a cookie signed by one service never verifies at another.
+- Keep secrets in env. Commit only `.env.example`, with every secret left empty (`SECRET_KEY=`), so a copied example fails fast. Generate values with `python -c 'import secrets; print(secrets.token_hex(32))'`.
 - Leave /health open. /_test/clock answers 404 unless the test flag is on (ADR-0013).
 
 ## Consequences
@@ -45,7 +46,7 @@ Example: Purchase calls POST /grants on Access with `Authorization: Bearer <ACCE
 - **Mutual TLS.** Certificates and infrastructure for three local containers.
 - **JWTs signed by Purchase.** A library or hand-written crypto, plus key distribution.
 - **OAuth client credentials.** Needs an authorisation server, a fourth service.
-- **Trust the Docker network.** Rejected: ports are published on localhost.
+- **Trust the Docker network.** Rejected: ports are published on 127.0.0.1, where any local process can call them.
 - **Purchase's login cookie on Payment and Access.** Shares SECRET_KEY across services and couples them.
 
 ## Rules and decisions

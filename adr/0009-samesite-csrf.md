@@ -23,9 +23,10 @@ Example: while Member A is logged in, a page on another site auto-submits a hidd
 ## Consequences
 
 - Good: no dependency, no hidden field in every template, no token store. One review rule: writes are POSTs.
-- Bad: SameSite works per site, not per origin. localhost:8001, 8002 and 8003 are one site, so our own services could post to each other with the cookie. Accepted: they are our code. Deploy under a domain we control, with no untrusted sibling subdomains.
+- Bad: SameSite works per site, not per origin, and cookies ignore the port. On localhost every service, and any other page served from localhost on any port, receives all three cookies (purchase_session reaches Payment's hosted page) and is same-site for CSRF. Accepted for the local stack: run nothing else on localhost while using it, and no service logs the Cookie header. A real deployment gives each service its own host name under a domain we control, with no untrusted sibling subdomains, and leaves the cookie domain unset so each cookie is host-only.
 - Bad: HTTP Basic credentials are not cookies, so SameSite does not cover them. Payment's /operator only reads. A forged cross-site scan at /checkin arrives without `access_session`, so it has no room and is refused ("Select the room first"). A forged room change is possible; the kiosk shows its room with every result (ADR-0016).
 - Bad: it relies on the browser honouring SameSite. A very old browser would send the cookie.
+- Bad: login and logout CSRF. POST /login needs no cookie, and a cookie set by a cross-site top-level POST is stored, so a hostile page can log the browser in to an attacker's account; a cross-site POST /logout clears the cookie. Limit: the header always shows the logged-in email with the display name, "Member A (a@example.com)"; an attacker chooses the display name but cannot hold the victim's registered email; an ASCII look-alike address (a@exarnple.com) can still pass a quick glance (ADR-0016, PUR-R02). The Origin check below is the upgrade path, first for POST /login and /register.
 - Bad: one GET that changes state by mistake would be forgeable. Code review checks PUR-R37.
 
 ## Alternatives considered

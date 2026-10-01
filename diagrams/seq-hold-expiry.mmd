@@ -17,9 +17,10 @@ sequenceDiagram
   A->>PAY: GET /pay/ps_... then leaves the tab open
   Note over A,PAY: 10:14
   A->>PAY: POST /pay/ps_... card_number=4242424242424242, expiry=12/28, cvc=123
-  PAY-->>A: 409 page "This payment session has expired.", no attempt stored, nothing charged (PMT-R11, PMT-R05)
-  A->>P: POST /spaces/1/book same space and time ("Continue to payment")
-  P-->>A: 303 to /bookings/BK-7KQ2M9, flash "Time to pay has run out#59; you can book again after 10:15" (PUR-R40)
+  PAY-->>A: 409, the expired page "This payment session has expired. Nothing was charged." and "Back to your booking", no attempt stored (PMT-R11, PMT-R05)
+  A->>P: POST /spaces/1/book same space and time ("Continue to payment" from a booking page loaded before 10:13)
+  P-->>A: 303 to /bookings/BK-7KQ2M9, flash "Time to pay has run out#59; cancel this hold or book again from 10:15" (PUR-R40)
+  Note over A,P: The booking page shows "Time to pay has run out. Nothing was charged. Cancel this hold to book again now,<br/>or it ends at 10:15." and Cancel, with no countdown (PUR-R40)
   Note over P: No session request, no redirect. Until 10:15 the hold still blocks the slot (PUR-R12)
   Note over C,PAY: 10:16, the hold has lapsed
   C->>P: GET /spaces/1?date=2026-10-07&blocks=3

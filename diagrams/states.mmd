@@ -11,8 +11,8 @@ stateDiagram-v2
       [*] --> B_held: pay coverage, Continue to payment (PUR-R21)
       [*] --> B_confirmed: plan or free, confirmed at once (PUR-R20)
       B_held --> B_confirmed: session paid and matches, even after the hold lapsed (PUR-R25)
-      B_held --> B_expired: session unpaid and hold lapsed (PUR-R24)
-      B_held --> B_cancelled: cancel, expire returns unpaid (PUR-R31)
+      B_held --> B_expired: session unpaid, or no session, and hold lapsed (PUR-R24, PUR-Q09)
+      B_held --> B_cancelled: cancel inside the hold, expire returns unpaid, or no session (PUR-R31)
       B_held --> B_cancelled: paid session does not match, amount_mismatch, full refund (PUR-R25)
       B_confirmed --> B_cancelled: Member before start (100% at 24 h or more, else 0%), or Operator before end, 100% (PUR-R30)
       B_confirmed --> B_completed: end passes (PUR-R28)
@@ -45,7 +45,7 @@ stateDiagram-v2
       state "revoked<br/>final, CANCELLED overlay" as G_revoked
       state "not yet valid (derived)<br/>now before valid_from" as G_notyet
       state "expired (derived)<br/>now at or after valid_until" as G_expired
-      state "no-show (derived)<br/>expired, never checked in" as G_noshow
+      state "no-show (derived)<br/>window over, never checked in" as G_noshow
       [*] --> G_issued: POST /grants (AXS-R01)
       [*] --> G_revoked: revoke unknown reference, tombstone (AXS-R02)
       G_issued --> G_checked_in: first ok scan (AXS-R16)
@@ -54,7 +54,7 @@ stateDiagram-v2
       G_issued --> G_notyet: read before window
       G_issued --> G_expired: read after window
       G_checked_in --> G_expired: read after window
-      G_expired --> G_noshow: no ok scan in the scan log
+      G_issued --> G_noshow: read after window, never scanned ok
     }
   }
   classDef purchase fill:#dbeafe,stroke:#1d4ed8,color:#0b1b3f
