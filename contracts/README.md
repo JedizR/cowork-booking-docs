@@ -4,9 +4,9 @@ Cowork Booking has three service contracts. Purchase is the only caller of the o
 
 | Contract | Provider | Consumer | Link | State | Evidence |
 |---|---|---|---|---|---|
-| purchase-payment | Payment (cowork-booking-payment) | Purchase | [CONTRACT.md](https://github.com/JedizR/cowork-booking-payment/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-payment/blob/main/openapi.yaml) | agreed | Consumer-lens sign-off in REVIEW_LOG.md (M4 contract sign-off); provider tag contract-v1 |
-| purchase-access | Access (cowork-booking-access) | Purchase | [CONTRACT.md](https://github.com/JedizR/cowork-booking-access/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-access/blob/main/openapi.yaml) | agreed | Consumer-lens sign-off in REVIEW_LOG.md (M4 contract sign-off); provider tag contract-v1 |
-| purchase-public | Purchase (cowork-booking-purchase) | Browser, e2e suite | [CONTRACT.md](https://github.com/JedizR/cowork-booking-purchase/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-purchase/blob/main/openapi.yaml) | agreed | Consumer-lens sign-off in REVIEW_LOG.md (M4 contract sign-off); provider tag contract-v1 |
+| purchase-payment | Payment (cowork-booking-payment) | Purchase | [CONTRACT.md](https://github.com/JedizR/cowork-booking-payment/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-payment/blob/main/openapi.yaml) | verified | Agreed in REVIEW_LOG.md (M4); verified by the M6 e2e run, 24 passed (integration/reports/e2e.xml) |
+| purchase-access | Access (cowork-booking-access) | Purchase | [CONTRACT.md](https://github.com/JedizR/cowork-booking-access/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-access/blob/main/openapi.yaml) | verified | Agreed in REVIEW_LOG.md (M4); verified by the M6 e2e run, 24 passed (integration/reports/e2e.xml) |
+| purchase-public | Purchase (cowork-booking-purchase) | Browser, e2e suite | [CONTRACT.md](https://github.com/JedizR/cowork-booking-purchase/blob/main/CONTRACT.md), [openapi.yaml](https://github.com/JedizR/cowork-booking-purchase/blob/main/openapi.yaml) | verified | Agreed in REVIEW_LOG.md (M4); verified by the M6 e2e run, 24 passed (integration/reports/e2e.xml) |
 
 ## Contract states
 

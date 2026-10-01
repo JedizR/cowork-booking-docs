@@ -25,7 +25,7 @@ CHANNELS = ("JSON", "form", "internal")
 DISPOSITIONS = ("kept", "merged", "superseded", "rejected")
 CONTRACT_STATES = ("proposed", "agreed", "verified")
 REPORTS = ("purchase", "payment", "access", "e2e")
-NODE = re.compile(r"`(purchase|payment|access|e2e):([^`\s]+?\.py)::([^`\s]+)`")
+NODE = re.compile(r"`(purchase|payment|access|e2e):([^`\s]+?\.py)::([^`]+)`")
 
 errors = []
 
