@@ -341,3 +341,7 @@ cowork-booking-<svc>/ app.py (or a small package past ~600 lines) <domain>.py cl
 ```
 
 `<domain>.py` is `purchase.py`, `payment.py` or `access.py`. Purchase adds `payment_client.py` and `access_client.py`, the one boundary its tests stub.
+
+## Against the course target
+
+The course's "ready for splitting" target keeps one application with Purchase as coordinator, Payments and Access owning their records, and no module reading another's tables. Cowork Booking keeps that ownership and call direction and takes the next step, separate services. The step-by-step mapping and the deliberate differences (hosted checkout, issuance at confirmation, the code shown on the booking page read live from Access) are in ADR-0021.

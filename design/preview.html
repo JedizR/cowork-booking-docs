@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cowork Booking design system</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="./style.css">
+<style>
+  /* Preview-only helpers (not part of the system) */
+  .pv-section { padding: 80px 0; border-top: 1px solid var(--hairline); }
+  .pv-section:first-of-type { border-top: 0; padding-top: 0; }
+  .pv-intro { max-width: 640px; margin-bottom: 48px; }
+  .pv-intro h2 { font-size: var(--fs-display); letter-spacing: -0.024em; line-height: 1.1; margin: 8px 0 12px; }
+  .pv-intro p:not(.eyebrow) { color: var(--muted); font-size: var(--fs-tagline); line-height: 1.38; letter-spacing: -0.012em; }
+  .pv-block + .pv-block { margin-top: 64px; }
+  .pv-label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 17px; }
+  .pv-note { font-size: 14px; color: var(--muted); margin-top: 12px; }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 24px 17px; }
+  .swatch-chip { height: 64px; border-radius: 11px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); margin-bottom: 10px; }
+  .swatch b { display: block; font-size: 14px; font-weight: 600; }
+  .swatch span { display: block; font-size: 12px; color: var(--muted); letter-spacing: 0; }
+  .type-row { display: grid; grid-template-columns: 200px minmax(0,1fr); gap: 24px; padding: 17px 0; border-bottom: 1px solid var(--divider-soft); align-items: baseline; }
+  .type-row:last-child { border-bottom: 0; }
+  .type-row .fine { line-height: 1.5; }
+  .scale { display: flex; align-items: flex-end; gap: 17px; flex-wrap: wrap; }
+  .scale div { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .scale i { display: block; background: var(--ink); width: 24px; border-radius: 3px; }
+  .radii { display: flex; gap: 17px; flex-wrap: wrap; }
+  .radii div { width: 96px; height: 64px; background: var(--parchment); box-shadow: inset 0 0 0 1px var(--hairline); display: grid; place-items: center; font-size: 12px; color: var(--muted); }
+  .frame { border: 1px solid var(--hairline); border-radius: 18px; overflow: hidden; background: #fff; }
+  .frame-bar { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: var(--parchment); border-bottom: 1px solid var(--hairline); font-size: 12px; color: var(--muted); letter-spacing: 0; }
+  .frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--fill-strong); }
+  .frame-bar span { margin-left: 10px; }
+  .frame .kiosk, .frame .ticket-page { min-height: 0; }
+  .frame .page { padding: 32px 0 0; }
+  .frame .sticky-bar { position: relative; }
+  .status-map th:first-child { width: 28%; }
+  .tickets { display: grid; grid-template-columns: repeat(2, minmax(0, 400px)); justify-content: center; gap: 32px; }
+  @media (max-width: 833px) { .tickets { grid-template-columns: minmax(0, 400px); } .type-row { grid-template-columns: 1fr; gap: 6px; } }
+  @media (max-width: 640px) { .pv-section { padding: 56px 0; } .pv-intro h2 { font-size: var(--fs-title); } .pv-intro p { font-size: var(--fs-body); } }
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <a class="brand" href="#"><span class="brand-mark" aria-hidden="true">C</span>Cowork</a>
+    <nav class="topnav-links" aria-label="Main">
+      <a href="#" aria-current="page">Spaces</a>
+      <a href="#">My bookings</a>
+      <a href="#">All bookings</a>
+      <a href="#">Spaces admin</a>
+      <a href="#">Members</a>
+      <a href="#">Dashboard</a>
+      <a href="#">Payment totals</a>
+    </nav>
+    <div class="topnav-right">
+      <span class="topnav-user">Member A (a@example.com)</span>
+      <form method="post" action="#"><button class="topnav-btn" type="button">Log out</button></form>
+    </div>
+  </div>
+</header>
+
+<div class="subnav">
+  <div class="subnav-inner">
+    <span class="subnav-title">Design system</span>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#foundations" aria-current="page">Foundations</a>
+      <a href="#components">Components</a>
+      <a href="#patterns">Patterns</a>
+    </nav>
+  </div>
+</div>
+
+<main class="page">
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Cowork Booking</p>
+        <h1 class="page-title">Design system</h1>
+        <p class="page-subtitle">One stylesheet for Purchase, Payment and Access. Black and white, Inter, and every state taken from the business rules.</p>
+      </div>
+      <div class="page-actions">
+        <a class="btn btn-secondary" href="#components">Components</a>
+        <a class="btn btn-primary" href="#patterns">See the booking flow</a>
+      </div>
+    </header>
+  </div>
+
+  <!-- ============================== FOUNDATIONS ============================== -->
+  <section class="pv-section" id="foundations">
+    <div class="container">
+      <div class="pv-intro">
+        <p class="eyebrow">Foundations</p>
+        <h2>Ink on white.</h2>
+        <p>One action colour, and it is black. Status is shown by fill: solid, outline or grey, always with words.</p>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Colour</p>
+        <div class="swatches">
+          <div class="swatch"><div class="swatch-chip" style="background:#000"></div><b>black</b><span>#000000 · nav, kiosk ok</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#1d1d1f"></div><b>ink</b><span>#1d1d1f · text, action</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#272729"></div><b>tile-dark-2</b><span>#272729 · stacked dark</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#6e6e73"></div><b>muted</b><span>#6e6e73 · 5.1:1</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#86868b"></div><b>field-border</b><span>#86868b · 3.6:1 edges</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#d2d2d7"></div><b>fill-strong</b><span>#d2d2d7</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#e8e8ed"></div><b>fill</b><span>#e8e8ed · grey status</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#e0e0e0"></div><b>hairline</b><span>#e0e0e0 · borders</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#f0f0f0"></div><b>divider-soft</b><span>#f0f0f0 · rows</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#f5f5f7"></div><b>parchment</b><span>#f5f5f7 · surfaces</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#fafafc"></div><b>pearl</b><span>#fafafc · hover</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:#fff"></div><b>canvas</b><span>#ffffff</span></div>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Typography · Inter 300 / 400 / 600 / 700</p>
+        <div>
+          <div class="type-row"><span class="fine">hero · 56 / 600 / −0.025em</span><span class="hero-title">Book a room.</span></div>
+          <div class="type-row"><span class="fine">display · 40 / 600</span><span class="display">THB 450.00</span></div>
+          <div class="type-row"><span class="fine">title · 34 / 600</span><span class="h1">Meeting Room A</span></div>
+          <div class="type-row"><span class="fine">heading · 24 / 600</span><span class="h2">Your booking</span></div>
+          <div class="type-row"><span class="fine">tagline · 21 / 600</span><span class="h3">Wednesday 7 October</span></div>
+          <div class="type-row"><span class="fine">lead · 21 / 400</span><span class="lead">Pick a start, then an end. 30 min to 4 h.</span></div>
+          <div class="type-row"><span class="fine">body · 17 / 400 / 1.44</span><span>Full refund if you cancel 24 h or more before the start; after that, no refund.</span></div>
+          <div class="type-row"><span class="fine">callout · 15 / 400</span><span style="font-size:15px">Tables, lists and dense app rows.</span></div>
+          <div class="type-row"><span class="fine">caption · 14 / 400</span><span class="caption">Up to 6 people · THB 150 per 30 min</span></div>
+          <div class="type-row"><span class="fine">fine · 12 / 400</span><span class="fine">Booking ref (not for entry) BK-7KQ2M9</span></div>
+          <div class="type-row"><span class="fine">eyebrow · 12 / 600 caps</span><span class="eyebrow">Check-in window</span></div>
+          <div class="type-row"><span class="fine">tabular · .num</span><span class="num" style="font-size:21px;font-weight:600">09:00–10:30 · THB 1,234.50 · 94.5 h</span></div>
+        </div>
+      </div>
+
+      <div class="pv-block grid-2">
+        <div>
+          <p class="pv-label">Spacing · 4 / 8 / 12 / 17 / 24 / 32 / 48 / 80</p>
+          <div class="scale">
+            <div><i style="height:4px"></i>4</div><div><i style="height:8px"></i>8</div><div><i style="height:12px"></i>12</div>
+            <div><i style="height:17px"></i>17</div><div><i style="height:24px"></i>24</div><div><i style="height:32px"></i>32</div>
+            <div><i style="height:48px"></i>48</div><div><i style="height:80px"></i>80</div>
+          </div>
+        </div>
+        <div>
+          <p class="pv-label">Radius</p>
+          <div class="radii">
+            <div style="border-radius:8px">8 utility</div>
+            <div style="border-radius:11px">11 field</div>
+            <div style="border-radius:18px">18 card</div>
+            <div style="border-radius:999px">pill action</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== COMPONENTS ============================== -->
+  <section class="pv-section" id="components">
+    <div class="container">
+      <div class="pv-intro">
+        <p class="eyebrow">Components</p>
+        <h2>Quiet parts, one clear action.</h2>
+        <p>Pills act. 8 px rectangles are compact tools. Cards sit on hairlines, never on shadows.</p>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Buttons</p>
+        <div class="cluster">
+          <button class="btn btn-primary" type="button">Continue to payment</button>
+          <button class="btn btn-secondary" type="button">Keep booking</button>
+          <button class="btn" type="button">View e-ticket</button>
+          <button class="btn btn-ghost" type="button">Back</button>
+          <button class="btn btn-primary" type="button" disabled>Pay</button>
+          <button class="btn btn-icon" type="button" aria-label="Next month">›</button>
+        </div>
+        <div class="cluster" style="margin-top:17px">
+          <button class="btn btn-utility" type="button">Retry</button>
+          <button class="btn btn-utility" type="button">Reconcile</button>
+          <button class="btn btn-utility btn-primary" type="button">Save space</button>
+          <button class="btn btn-lg btn-primary" type="button">Book</button>
+          <button class="btn btn-lg btn-secondary" type="button">Log in to book</button>
+        </div>
+        <div class="tile tile-dark" style="margin-top:24px;border-radius:18px;padding:32px">
+          <div class="cluster" style="justify-content:space-between">
+            <div><p class="h3" style="margin:0">On dark tiles the action turns white.</p><p class="muted" style="margin:4px 0 0">Same grammar, inverted.</p></div>
+            <div class="cluster"><button class="btn btn-secondary" type="button">Learn more</button><button class="btn btn-primary" type="button">Browse spaces</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-block grid-2">
+        <div class="card stack">
+          <p class="pv-label" style="margin:0">Fields</p>
+          <div class="field"><label for="f1">Email</label><input id="f1" type="email" value="a@example.com" autocomplete="email"></div>
+          <div class="field"><label for="f2">Password</label><input id="f2" type="password" placeholder="At least 8 characters"><p class="help">At least 8 characters.</p></div>
+          <div class="field has-error"><label for="f3">Display name</label><input id="f3" value="Member A!!" aria-invalid="true" aria-describedby="f3e"><p class="error" id="f3e">Display name must be 1 to 50 letters, digits or spaces</p></div>
+          <div class="form-row">
+            <div class="field"><label for="f4">Space</label><select id="f4"><option>Meeting Room A</option><option>Focus Booth</option></select></div>
+            <div class="field"><label for="f5">Rate, THB per hour</label><input id="f5" class="num" inputmode="numeric" value="300"></div>
+          </div>
+          <div class="field"><label for="f6">Note <span class="optional">· optional</span></label><textarea id="f6" maxlength="500" placeholder="Anything the room should know"></textarea><p class="help">Up to 500 characters.</p></div>
+        </div>
+        <div class="card stack">
+          <p class="pv-label" style="margin:0">Controls</p>
+          <div class="field"><span class="label" id="ps">Party size</span>
+            <div class="stepper" role="group" aria-labelledby="ps"><button class="stepper-btn" type="button" aria-label="Fewer people" disabled>−</button><input type="number" value="1" min="1" max="6" aria-label="Party size"><button class="stepper-btn" type="button" aria-label="More people">+</button></div>
+            <p class="help">Whole room, up to 6 people.</p>
+          </div>
+          <div>
+            <label class="switch"><input type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span>Plan on for b@example.com</label><br>
+            <label class="switch"><input type="checkbox" role="switch"><span class="switch-track" aria-hidden="true"></span>Plan off</label>
+          </div>
+          <div class="segmented" role="radiogroup" aria-label="Show">
+            <label><input type="radio" name="seg" checked><span>Upcoming</span></label>
+            <label><input type="radio" name="seg"><span>Past</span></label>
+            <label><input type="radio" name="seg"><span>All</span></label>
+          </div>
+          <label class="check"><input type="checkbox" checked> Show archived spaces</label>
+          <input class="search" type="search" placeholder="Search by reference or email" aria-label="Search bookings">
+          <div class="field"><span class="label">Card information</span>
+            <div class="field-group">
+              <input inputmode="numeric" placeholder="1234 1234 1234 1234" aria-label="Card number">
+              <div class="field-group-row"><input placeholder="MM / YY" aria-label="Expiry"><input placeholder="CVC" aria-label="CVC"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Chips</p>
+        <div class="chip-row">
+          <button class="chip" type="button">Today</button>
+          <button class="chip" type="button">Tomorrow</button>
+          <button class="chip chip-selected" type="button" aria-pressed="true">Wed 7 Oct</button>
+          <button class="chip" type="button">Thu 8 Oct</button>
+          <span class="chip chip-muted">Up to 6 people</span>
+          <span class="chip chip-muted">Room 1</span>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Badges · status by fill, always with words</p>
+        <div class="table-wrap">
+          <table class="table status-map">
+            <thead><tr><th>Object</th><th>Solid · done or valid</th><th>Outline · waiting</th><th>Grey · ended</th><th>Attention · needs a person</th></tr></thead>
+            <tbody>
+              <tr><td>Booking</td><td><span class="badge badge-solid">Confirmed</span></td><td><span class="badge badge-outline">Held · pay by 10:13</span></td><td><span class="badge badge-muted">Completed</span> <span class="badge badge-muted">Expired</span> <span class="badge badge-muted">Cancelled</span></td><td><span class="badge badge-attention">Refund failed</span></td></tr>
+              <tr><td>Ticket (grant)</td><td><span class="badge badge-solid">Issued</span> <span class="badge badge-solid">Checked in</span></td><td><span class="badge badge-outline">Being prepared</span></td><td><span class="badge badge-muted">Expired</span> <span class="badge badge-muted">Cancelled</span></td><td><span class="badge badge-attention">Revocation pending</span></td></tr>
+              <tr><td>Payment session</td><td><span class="badge badge-solid">Paid</span></td><td><span class="badge badge-outline">Open</span></td><td><span class="badge badge-muted">Expired</span></td><td><span class="badge badge-attention">Status unknown</span></td></tr>
+              <tr><td>Refund</td><td><span class="badge badge-solid">Succeeded</span></td><td><span class="badge badge-outline">Refund pending</span></td><td><span class="badge badge-muted">No refund</span></td><td><span class="badge badge-attention">Failed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pv-block grid-2">
+        <div class="stack stack-sm">
+          <p class="pv-label" style="margin:0">Flashes · one-time outcome after a form</p>
+          <ul class="flashes" style="margin:0">
+            <li class="flash flash-success"><span class="flash-icon" aria-hidden="true"></span><span>Confirmed. Paid THB 450.00.</span></li>
+            <li class="flash"><span class="flash-icon" aria-hidden="true"></span><span>Please log in again</span></li>
+            <li class="flash flash-error" role="alert"><span class="flash-icon" aria-hidden="true"></span><span>Slot just taken. Pick another time.</span></li>
+          </ul>
+        </div>
+        <div class="stack stack-sm">
+          <p class="pv-label" style="margin:0">Alerts · persistent state on a page</p>
+          <div class="alert" role="status">
+            <span class="alert-icon" aria-hidden="true">i</span>
+            <p class="alert-title">Your e-ticket is being prepared</p>
+            <p class="alert-body">Your booking is confirmed. Open this page again in a minute to get the ticket.</p>
+          </div>
+          <div class="alert alert-strong" role="status">
+            <span class="alert-icon" aria-hidden="true">!</span>
+            <p class="alert-title">You have a held booking</p>
+            <p class="alert-body">BK-7KQ2M9, Meeting Room A, 2026-10-07 09:00–10:30. Pay by 10:13 or cancel it.</p>
+            <div class="alert-actions"><a class="btn btn-primary btn-utility" href="#">Continue to payment</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Space cards · typographic cover, capacity is the hero number</p>
+        <div class="grid-3">
+          <a class="space-card" href="#">
+            <div class="space-card-cover">
+              <div class="space-card-top"><span class="space-card-room">Room 1</span><span class="badge badge-solid">Free now</span></div>
+              <div class="space-card-mark"><b>6</b><span>people</span></div>
+            </div>
+            <div class="space-card-body">
+              <div class="space-card-row"><h3 class="space-card-title">Meeting Room A</h3><span class="space-card-price"><strong>THB 300</strong> / h</span></div>
+              <p class="space-card-meta">Whole room · THB 150 per 30 min</p>
+            </div>
+          </a>
+          <a class="space-card" href="#">
+            <div class="space-card-cover">
+              <div class="space-card-top"><span class="space-card-room">Room 2</span><span class="badge badge-muted">Booked now</span></div>
+              <div class="space-card-mark"><b>1</b><span>person</span></div>
+            </div>
+            <div class="space-card-body">
+              <div class="space-card-row"><h3 class="space-card-title">Focus Booth</h3><span class="space-card-price"><strong>THB 120</strong> / h</span></div>
+              <p class="space-card-meta">Whole room · THB 60 per 30 min</p>
+            </div>
+          </a>
+          <a class="space-card" href="#">
+            <div class="space-card-cover">
+              <div class="space-card-top"><span class="space-card-room">Room 3</span><span class="badge badge-solid">Free now</span></div>
+              <div class="space-card-mark"><b>12</b><span>people</span></div>
+            </div>
+            <div class="space-card-body">
+              <div class="space-card-row"><h3 class="space-card-title">Community Table</h3><span class="space-card-price"><strong>Free</strong></span></div>
+              <p class="space-card-meta">Whole table · no payment</p>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <div class="pv-block grid-2">
+        <div>
+          <p class="pv-label">Summary</p>
+          <aside class="summary">
+            <h3 class="summary-title">Meeting Room A</h3>
+            <div class="summary-row"><span>Date</span><span>Wed 7 Oct 2026</span></div>
+            <div class="summary-row"><span>Time</span><span>09:00–10:30</span></div>
+            <div class="summary-row"><span>Duration</span><span>1 h 30 min</span></div>
+            <div class="summary-row"><span>Party</span><span>4 people</span></div>
+            <div class="summary-total"><span>Total</span><span>THB 450.00</span></div>
+            <p class="fine">Full refund if you cancel 24 h or more before the start; after that, no refund.</p>
+          </aside>
+        </div>
+        <div>
+          <p class="pv-label">Key-value</p>
+          <div class="card">
+            <dl class="dl">
+              <dt>Reference</dt><dd>BK-7KQ2M9</dd>
+              <dt>Status</dt><dd><span class="badge badge-solid">Confirmed</span></dd>
+              <dt>Coverage</dt><dd>Pay · THB 450.00 paid</dd>
+              <dt>Party</dt><dd>Party of 4</dd>
+              <dt>Note</dt><dd>Team planning</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Table · hairlines, numbers right-aligned, row actions</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Reference</th><th>Member</th><th>Space · time</th><th>Status</th><th class="col-num">Price</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody>
+              <tr class="is-flagged"><td><strong>BK-3HT8WD</strong></td><td>Member C<span class="cell-sub">c@example.com</span></td><td>Meeting Room A<span class="cell-sub">2026-10-06 14:00–15:00</span></td><td><span class="badge badge-attention">Refund failed</span><span class="cell-sub">Refund requested 10:02</span></td><td class="col-num">THB 300.00</td><td class="row-actions"><button class="btn btn-utility btn-primary" type="button">Retry</button></td></tr>
+              <tr><td><strong>BK-7KQ2M9</strong></td><td>Member A<span class="cell-sub">a@example.com</span></td><td>Meeting Room A<span class="cell-sub">2026-10-07 09:00–10:30</span></td><td><span class="badge badge-outline">Held · pay by 10:13</span></td><td class="col-num">THB 450.00</td><td class="row-actions"><button class="btn btn-utility" type="button">Reconcile</button><button class="btn btn-utility" type="button">Cancel</button></td></tr>
+              <tr><td><strong>BK-3MZ8QT</strong></td><td>Member B<span class="cell-sub">b@example.com</span></td><td>Meeting Room A<span class="cell-sub">2026-10-07 10:30–11:30</span></td><td><span class="badge badge-solid">Confirmed</span><span class="cell-sub">Plan</span></td><td class="col-num">THB 300.00</td><td class="row-actions"><button class="btn btn-utility" type="button">Cancel</button></td></tr>
+              <tr><td><strong>BK-9PRW4K</strong></td><td>Member A<span class="cell-sub">a@example.com</span></td><td>Community Table<span class="cell-sub">2026-10-02 08:00–09:00</span></td><td><span class="badge badge-muted">Completed</span><span class="cell-sub">Free</span></td><td class="col-num">THB 0.00</td><td class="row-actions"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pv-block grid-2">
+        <div>
+          <p class="pv-label">Tabs</p>
+          <nav class="tabs" aria-label="Bookings"><a href="#" aria-current="page">Upcoming</a><a href="#">Past</a><a href="#">Cancelled</a></nav>
+          <p class="pv-label" style="margin-top:40px">List · My bookings</p>
+          <ul class="list">
+            <li class="list-item">
+              <div class="date-tile" aria-hidden="true"><span class="date-tile-month">Oct</span><span class="date-tile-day">7</span></div>
+              <div><p class="list-item-title"><a href="#">Meeting Room A</a></p><p class="list-item-meta">Wed 09:00–10:30 · BK-7KQ2M9</p></div>
+              <div class="list-item-aside"><span class="badge badge-outline">Pay by 10:13</span></div>
+            </li>
+            <li class="list-item">
+              <div class="date-tile" aria-hidden="true"><span class="date-tile-month">Oct</span><span class="date-tile-day">7</span></div>
+              <div><p class="list-item-title"><a href="#">Focus Booth</a></p><p class="list-item-meta">Wed 14:00–15:00 · BK-4QX7NB</p></div>
+              <div class="list-item-aside"><span class="badge badge-solid">Confirmed</span><a class="btn btn-utility" href="#">View e-ticket</a></div>
+            </li>
+            <li class="list-item is-past">
+              <div class="date-tile" aria-hidden="true"><span class="date-tile-month">Oct</span><span class="date-tile-day">2</span></div>
+              <div><p class="list-item-title"><a href="#">Community Table</a></p><p class="list-item-meta">Fri 08:00–09:00 · BK-9PRW4K</p></div>
+              <div class="list-item-aside"><span class="badge badge-muted">Completed</span></div>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <p class="pv-label">Countdown and progress</p>
+          <div class="stack stack-sm">
+            <div><span class="countdown" data-seconds-left="720">Pay by 10:13 <span class="countdown-left">12 min left</span></span></div>
+            <div><span class="countdown is-urgent" data-seconds-left="40">Pay by 10:13 <span class="countdown-left">less than 1 min left</span></span></div>
+            <div><span class="countdown is-over">Time to pay has run out</span></div>
+            <progress class="progress" max="780" value="720" aria-label="Time left to pay">12 min left</progress>
+          </div>
+          <p class="pv-label" style="margin-top:40px">Steps</p>
+          <ol class="steps">
+            <li class="is-done"><span class="steps-label">Held</span><span class="steps-meta">10:00</span></li>
+            <li class="is-done"><span class="steps-label">Paid</span><span class="steps-meta">10:04</span></li>
+            <li class="is-current" aria-current="step"><span class="steps-label">Confirmed</span><span class="steps-meta">10:04</span></li>
+            <li><span class="steps-label">Ticket ready</span><span class="steps-meta">Preparing</span></li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="pv-block">
+        <p class="pv-label">Empty state</p>
+        <div class="empty">
+          <div class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></div>
+          <h3 class="empty-title">No bookings yet</h3>
+          <p class="empty-text">When you book a room it shows up here, with its e-ticket.</p>
+          <a class="btn btn-primary" href="#">Browse spaces</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== PATTERNS ============================== -->
+  <section class="pv-section" id="patterns">
+    <div class="container">
+      <div class="pv-intro">
+        <p class="eyebrow">Patterns</p>
+        <h2>Pick the time on the day itself.</h2>
+        <p>No duration menu, no list of starts. Tap a start, tap an end, see the price, continue.</p>
+      </div>
+
+      <!-- Booking range picker -->
+      <div class="pv-block">
+        <p class="pv-label">Space page · booking range picker (Purchase)</p>
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span>localhost:8001/spaces/1?date=2026-10-07</span></div>
+          <form class="page" action="#" onsubmit="return false">
+            <div class="container">
+              <a class="back-link" href="#">All spaces</a>
+              <header class="page-header">
+                <div>
+                  <h1 class="page-title">Meeting Room A</h1>
+                  <div class="chip-row" style="margin-top:12px"><span class="chip chip-muted">Room 1</span><span class="chip chip-muted">Up to 6 people</span><span class="chip chip-muted num">THB 300 per hour</span></div>
+                </div>
+              </header>
+              <div class="picker">
+                <div class="card picker-date">
+                  <div class="cal" id="cal"></div>
+                </div>
+                  <div class="card stack stack-sm picker-details">
+                    <div class="field"><span class="label" id="ps2">Party size</span>
+                      <div class="stepper" role="group" aria-labelledby="ps2"><button class="stepper-btn" type="button" aria-label="Fewer people">−</button><input type="number" name="party_size" value="4" min="1" max="6" aria-label="Party size"><button class="stepper-btn" type="button" aria-label="More people">+</button></div>
+                      <p class="help">You book the whole room, for 1 to 6 people.</p>
+                    </div>
+                    <div class="field"><label for="note">Note <span class="optional">· optional</span></label><textarea id="note" name="note" maxlength="500" style="min-height:72px">Team planning</textarea></div>
+                  </div>
+                <div class="picker-time">
+                  <div class="timeline" id="timeline" role="group" aria-labelledby="tl-title">
+                    <div class="timeline-head">
+                      <h2 class="timeline-title" id="tl-title">Wednesday 7 October</h2>
+                      <p class="timeline-hint">Tap a start, then an end · 30 min to 4 h</p>
+                    </div>
+                    <div class="timeline-slots" id="slots"></div>
+                  </div>
+                  <div class="timeline-legend" aria-hidden="true">
+                    <span class="legend-item"><i class="legend-swatch"></i>Free</span>
+                    <span class="legend-item"><i class="legend-swatch is-selected"></i>Your time</span>
+                    <span class="legend-item"><i class="legend-swatch is-booked"></i>Booked</span>
+                    <span class="legend-item"><i class="legend-swatch is-unavailable"></i>Too soon</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" name="date" value="2026-10-07"><input type="hidden" name="start" id="in-start"><input type="hidden" name="blocks" id="in-blocks">
+            <div class="sticky-bar" style="margin-top:48px">
+              <div class="sticky-bar-inner">
+                <div class="sticky-bar-summary">
+                  <span class="sticky-bar-title" id="bar-title">Wed 7 Oct · 09:00–10:30</span>
+                  <span class="sticky-bar-meta" id="bar-meta">1 h 30 min · THB 450.00 · full refund until 24 h before</span>
+                </div>
+                <div class="sticky-bar-actions"><button class="btn btn-primary btn-lg" id="bar-btn" type="submit">Continue to payment</button></div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <p class="pv-note">Try it: tap a free row to start, tap a later row to set the end. Booked and too-soon rows cannot be part of a range; a range stops at 8 blocks.</p>
+      </div>
+
+      <!-- Picking-end state -->
+      <div class="pv-block grid-2">
+        <div>
+          <p class="pv-label">Range states · choosing the end (hover preview)</p>
+          <div class="timeline" aria-hidden="true"><div class="timeline-slots">
+            <div class="slot is-unavailable"><span class="slot-time">08:00</span><span class="slot-body"><span class="slot-reason">Too soon</span></span></div>
+            <div class="slot is-unavailable"><span class="slot-time">08:30</span><span class="slot-body"><span class="slot-reason">Too soon</span></span></div>
+            <div class="slot is-selected is-range-start is-range-end"><span class="slot-time">09:00</span><span class="slot-body"><span class="slot-label">09:00–09:30</span><span class="slot-sub">30 min</span></span></div>
+            <div class="slot is-preview"><span class="slot-time">09:30</span><span class="slot-body"></span></div>
+            <div class="slot is-preview is-preview-end"><span class="slot-time">10:00</span><span class="slot-body"><span class="slot-label">Until 10:30 · 1 h 30 min</span></span></div>
+            <div class="slot"><span class="slot-time">10:30</span><span class="slot-body"></span></div>
+            <div class="slot is-booked"><span class="slot-time">11:00</span><span class="slot-body"><span class="slot-reason">Booked</span></span></div>
+            <div class="slot is-booked"><span class="slot-time">11:30</span><span class="slot-body"><span class="slot-reason">Booked</span></span></div>
+            <div class="timeline-end"><span class="slot-time">12:00</span><span class="slot-body"></span></div>
+          </div></div>
+        </div>
+        <div>
+          <p class="pv-label">Before a range · nothing chosen yet</p>
+          <div class="sticky-bar" style="position:relative;border:1px solid var(--hairline);border-radius:18px">
+            <div class="sticky-bar-inner">
+              <div class="sticky-bar-summary"><span class="sticky-bar-title">Choose a time</span><span class="sticky-bar-meta">THB 150 per 30 min</span></div>
+              <div class="sticky-bar-actions"><button class="btn btn-primary btn-lg" type="button" disabled>Continue</button></div>
+            </div>
+          </div>
+          <p class="pv-label" style="margin-top:40px">No free time on the day</p>
+          <div class="empty" style="padding:32px 24px">
+            <h3 class="empty-title">No free time on this date</h3>
+            <p class="empty-text">Every half hour is booked or too soon. Try another date.</p>
+            <a class="btn btn-secondary" href="#">Thu 8 Oct</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Checkout -->
+      <div class="pv-block">
+        <p class="pv-label">Hosted checkout (Payment)</p>
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span>localhost:8002/pay/ps_8f2k…</span></div>
+          <div class="checkout">
+            <section class="checkout-summary">
+              <div>
+                <div class="checkout-merchant"><span class="brand-mark" style="background:#1d1d1f;color:#fff" aria-hidden="true">C</span>Cowork Booking</div>
+                <p class="checkout-label">Booking BK-7KQ2M9</p>
+                <p class="checkout-amount">THB 450.00</p>
+                <div class="summary" style="background:#fff;margin-bottom:24px">
+                  <div class="summary-row"><span>Space</span><span>Meeting Room A</span></div>
+                  <div class="summary-row"><span>Time</span><span>2026-10-07 09:00–10:30</span></div>
+                  <div class="summary-total"><span>Total due</span><span>THB 450.00</span></div>
+                </div>
+                <span class="countdown" data-seconds-left="720">Pay by 10:13 <span class="countdown-left">12 min left</span></span>
+              </div>
+            </section>
+            <section class="checkout-form">
+              <form class="stack stack-sm" action="#" onsubmit="return false">
+                <h2>Pay with card</h2>
+                <div class="test-banner">
+                  <strong>Test mode. No real card is charged.</strong>
+                  <ul>
+                    <li><code>4242 4242 4242 4242</code><span>Succeeds</span></li>
+                    <li><code>4000 0000 0000 0002</code><span>Declined</span></li>
+                    <li><code>4000 0000 0000 9995</code><span>Insufficient funds</span></li>
+                  </ul>
+                </div>
+                <div class="flash flash-error" role="alert" data-decline-code="generic_decline"><span class="flash-icon" aria-hidden="true"></span><span>Your card was declined. Try another card.</span></div>
+                <div class="field"><span class="label">Card information</span>
+                  <div class="field-group">
+                    <input inputmode="numeric" autocomplete="cc-number" placeholder="1234 1234 1234 1234" aria-label="Card number">
+                    <div class="field-group-row"><input autocomplete="cc-exp" placeholder="MM / YY" aria-label="Expiry, MM/YY"><input autocomplete="cc-csc" placeholder="CVC" aria-label="CVC"></div>
+                  </div>
+                </div>
+                <button class="btn btn-primary btn-lg btn-block" type="submit">Pay THB 450.00</button>
+                <a class="btn btn-ghost btn-block" href="#">Back</a>
+                <p class="fine" style="text-align:center">Cowork stores only the card brand and last 4 digits.</p>
+              </form>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmation / booking page -->
+      <div class="pv-block">
+        <p class="pv-label">Booking page · confirmation (Purchase)</p>
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span>localhost:8001/bookings/BK-7KQ2M9</span></div>
+          <div class="page" style="padding-bottom:48px">
+            <div class="container">
+              <ul class="flashes"><li class="flash flash-success"><span class="flash-icon" aria-hidden="true"></span><span>Confirmed. Paid THB 450.00.</span></li></ul>
+              <header class="page-header">
+                <div>
+                  <p class="eyebrow">BK-7KQ2M9</p>
+                  <h1 class="page-title">You’re booked.</h1>
+                  <p class="page-subtitle">Meeting Room A, Wednesday 7 October, 09:00–10:30.</p>
+                </div>
+                <span class="badge badge-solid">Confirmed</span>
+              </header>
+              <ol class="steps" style="margin-bottom:40px">
+                <li class="is-done"><span class="steps-label">Held</span><span class="steps-meta">10:00</span></li>
+                <li class="is-done"><span class="steps-label">Paid</span><span class="steps-meta">10:04</span></li>
+                <li class="is-done"><span class="steps-label">Confirmed</span><span class="steps-meta">10:04</span></li>
+                <li class="is-done"><span class="steps-label">Ticket ready</span><span class="steps-meta">10:04</span></li>
+              </ol>
+              <div class="split">
+                <div class="card">
+                  <dl class="dl">
+                    <dt>Space</dt><dd>Meeting Room A</dd>
+                    <dt>When</dt><dd>2026-10-07 09:00–10:30</dd>
+                    <dt>Check-in</dt><dd class="num">09:00–10:30</dd>
+                    <dt>Party</dt><dd>Party of 4</dd>
+                    <dt>Note</dt><dd>Team planning</dd>
+                    <dt>Payment</dt><dd class="num">THB 450.00 paid · Visa •••• 4242</dd>
+                  </dl>
+                  <div class="card-footer">
+                    <a class="btn btn-primary" href="#" target="_blank" rel="noopener">View e-ticket</a>
+                    <a class="btn btn-secondary" href="#">Cancel booking</a>
+                  </div>
+                </div>
+                <aside class="summary">
+                  <h3 class="summary-title">Cancellation</h3>
+                  <p class="caption" style="margin:0">Full refund if you cancel 24 h or more before the start, so until <strong class="num">Tue 6 Oct, 09:00</strong>. After that, no refund.</p>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E-ticket -->
+      <div class="pv-block">
+        <p class="pv-label">E-ticket (Access) · issued and cancelled</p>
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span>localhost:8003/t/Qm9vay1yZWYtbm90LWVudHJ5</span></div>
+          <div class="ticket-page">
+            <div class="tickets">
+              <article class="ticket" data-status="issued">
+                <div class="ticket-top">
+                  <div class="ticket-head">
+                    <div><p class="eyebrow">Cowork · E-ticket</p><h1 class="ticket-title">Meeting Room A</h1></div>
+                    <span class="badge badge-solid">Issued</span>
+                  </div>
+                  <dl class="ticket-meta">
+                    <div><dt>Date</dt><dd>Wed 7 Oct 2026</dd></div>
+                    <div><dt>Time</dt><dd>09:00–10:30</dd></div>
+                    <div class="is-wide"><dt>Check-in</dt><dd>09:00–10:30, room 1</dd></div>
+                  </dl>
+                </div>
+                <div class="ticket-divider" aria-hidden="true"></div>
+                <div class="ticket-body">
+                  <div class="ticket-qr" data-qr></div>
+                  <p class="ticket-code" data-ticket-code="H7K39QXA">H7K3-9QXA</p>
+                  <p class="ticket-hint">Type or scan this code at the door</p>
+                </div>
+                <p class="ticket-ref"><span>Booking ref (not for entry)</span><span>BK-7KQ2M9</span></p>
+              </article>
+              <article class="ticket is-cancelled" data-status="cancelled">
+                <div class="ticket-top">
+                  <div class="ticket-head">
+                    <div><p class="eyebrow">Cowork · E-ticket</p><h1 class="ticket-title">Focus Booth</h1></div>
+                    <span class="badge badge-muted">Cancelled</span>
+                  </div>
+                  <dl class="ticket-meta">
+                    <div><dt>Date</dt><dd>Wed 7 Oct 2026</dd></div>
+                    <div><dt>Time</dt><dd>14:00–15:00</dd></div>
+                    <div class="is-wide"><dt>Check-in</dt><dd>Not valid</dd></div>
+                  </dl>
+                </div>
+                <div class="ticket-divider" aria-hidden="true"></div>
+                <div class="ticket-body">
+                  <div class="ticket-qr" data-qr></div>
+                  <p class="ticket-code">M4RT-2WZE</p>
+                  <p class="ticket-hint">This ticket no longer opens the door</p>
+                  <div class="ticket-stamp" aria-hidden="true">Cancelled</div>
+                </div>
+                <p class="ticket-ref"><span>Booking ref (not for entry)</span><span>BK-4QX7NB</span></p>
+              </article>
+            </div>
+            <div class="ticket-actions"><button class="btn btn-secondary" type="button" onclick="window.print()">Print ticket</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kiosk -->
+      <div class="pv-block">
+        <p class="pv-label">Kiosk (Access) · Staff check-in at the door</p>
+        <div class="frame">
+          <div class="kiosk">
+            <div class="kiosk-bar"><div class="kiosk-bar-inner"><span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Check-in</span><span class="kiosk-room">Room: <strong>Meeting Room A (room 1)</strong></span><a class="topnav-btn" href="#">Change room</a></div></div>
+            <div class="kiosk-main">
+              <form class="kiosk-form" action="#" onsubmit="return false">
+                <label class="kiosk-label" for="code">Enter the ticket code</label>
+                <input class="kiosk-input" id="code" name="code" placeholder="XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" value="H7K3-9QXA">
+                <button class="btn btn-primary btn-lg btn-block" type="submit">Check in</button>
+              </form>
+              <div class="kiosk-result is-ok" data-result="ok" role="status">
+                <span class="kiosk-result-icon" aria-hidden="true"></span>
+                <p class="kiosk-result-title">Door unlocked (mock)</p>
+                <p class="kiosk-result-reason">H7K3-9QXA · Meeting Room A (room 1) · until 10:30</p>
+              </div>
+              <div class="kiosk-result" data-result="wrong_room" role="status">
+                <span class="kiosk-result-icon" aria-hidden="true"></span>
+                <p class="kiosk-result-title">Wrong room</p>
+                <p class="kiosk-result-reason">This ticket is for Focus Booth (room 2).</p>
+              </div>
+              <div class="kiosk-log">
+                <p class="pv-label" style="margin-bottom:12px">Last 10 scans at this room</p>
+                <div class="table-wrap">
+                  <table class="table">
+                    <thead><tr><th>Time</th><th>Code</th><th>Result</th></tr></thead>
+                    <tbody>
+                      <tr><td class="num">09:02</td><td>••••-9QXA</td><td><span class="badge badge-solid">Door unlocked</span></td></tr>
+                      <tr><td class="num">09:01</td><td>••••-2WZE</td><td><span class="badge badge-outline">Wrong room</span></td></tr>
+                      <tr><td class="num">08:41</td><td>••••-9QXA</td><td><span class="badge badge-outline">Opens at 09:00</span></td></tr>
+                      <tr><td>2026-10-06 17:20</td><td>••••-K2M9</td><td><span class="badge badge-muted">Code not recognised</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div class="pv-block">
+        <p class="pv-label">Operator dashboard (Purchase)</p>
+        <div class="frame">
+          <div class="subnav" style="position:relative">
+            <div class="subnav-inner">
+              <span class="subnav-title">Operator</span>
+              <nav class="tabs" aria-label="Operator"><a href="#">All bookings</a><a href="#">Spaces</a><a href="#">Members</a><a href="#" aria-current="page">Dashboard</a></nav>
+            </div>
+          </div>
+          <div class="page" style="padding-bottom:48px">
+            <div class="container">
+              <header class="page-header">
+                <div>
+                  <h1 class="page-title">Dashboard</h1>
+                  <p class="page-subtitle num">Last 7 days, Thu 1 Oct to Wed 7 Oct (Bangkok). Bookings count by their start.</p>
+                </div>
+                <div class="page-actions"><button class="btn btn-secondary" type="button">Reconcile all held</button></div>
+              </header>
+              <div class="grid-4">
+                <div class="stat"><span class="stat-label">Bookings</span><span class="stat-value">42</span><span class="stat-meta">31 confirmed · 2 held</span></div>
+                <div class="stat"><span class="stat-label">Utilization</span><span class="stat-value">37.5<small>%</small></span><progress class="progress" max="100" value="37.5">37.5%</progress></div>
+                <div class="stat"><span class="stat-label">Members who booked</span><span class="stat-value">18</span><span class="stat-meta">with a confirmed booking</span></div>
+                <div class="stat"><span class="stat-label">Confirmed hours</span><span class="stat-value">94.5<small> h</small></span><span class="stat-meta">pay, plan and free</span></div>
+              </div>
+              <div class="grid-2" style="margin-top:24px">
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Bookings by status</h3><span class="card-meta">42 total</span></div>
+                  <ul class="bar-chart">
+                    <li class="bar-row"><span class="bar-label">Confirmed</span><span class="bar-track"><span class="bar" style="--value:73.8%"></span></span><span class="bar-value">31</span></li>
+                    <li class="bar-row"><span class="bar-label">Held</span><span class="bar-track"><span class="bar" style="--value:4.8%"></span></span><span class="bar-value">2</span></li>
+                    <li class="bar-row"><span class="bar-label">Expired</span><span class="bar-track"><span class="bar bar-muted" style="--value:11.9%"></span></span><span class="bar-value">5</span></li>
+                    <li class="bar-row"><span class="bar-label">Cancelled</span><span class="bar-track"><span class="bar bar-muted" style="--value:9.5%"></span></span><span class="bar-value">4</span></li>
+                  </ul>
+                </div>
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Confirmed hours by coverage</h3><span class="card-meta">94.5 h</span></div>
+                  <ul class="bar-chart">
+                    <li class="bar-row"><span class="bar-label">Pay</span><span class="bar-track"><span class="bar" style="--value:65.6%"></span></span><span class="bar-value">62 h</span></li>
+                    <li class="bar-row"><span class="bar-label">Plan</span><span class="bar-track"><span class="bar" style="--value:29.6%"></span></span><span class="bar-value">28 h</span></li>
+                    <li class="bar-row"><span class="bar-label">Free</span><span class="bar-track"><span class="bar" style="--value:4.8%"></span></span><span class="bar-value">4.5 h</span></li>
+                  </ul>
+                  <p class="fine" style="margin-top:17px">Plan and free hours are not revenue. Money totals are on <a href="#">Payment totals</a>.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Errors -->
+      <div class="pv-block grid-2">
+        <div>
+          <p class="pv-label">Errors · form refused, values kept, one message per field</p>
+          <form class="card stack stack-sm" action="#" onsubmit="return false">
+            <h2 class="h3">Create your account</h2>
+            <div class="flash flash-error" role="alert"><span class="flash-icon" aria-hidden="true"></span><span>Email already registered</span></div>
+            <div class="field has-error"><label for="r1">Email</label><input id="r1" type="email" value="a@example.com" aria-invalid="true" aria-describedby="r1e"><p class="error" id="r1e">Email already registered. <a href="#">Log in</a> instead.</p></div>
+            <div class="field"><label for="r2">Display name</label><input id="r2" value="Member A"></div>
+            <div class="field"><label for="r3">Password</label><input id="r3" type="password"><p class="help">At least 8 characters.</p></div>
+            <button class="btn btn-primary btn-block" type="submit">Sign up</button>
+          </form>
+        </div>
+        <div>
+          <p class="pv-label">Not found</p>
+          <div class="empty" style="height:calc(100% - 29px);display:flex;flex-direction:column;justify-content:center;align-items:center">
+            <p class="eyebrow" style="margin-bottom:8px">404</p>
+            <h3 class="empty-title">This page does not exist</h3>
+            <p class="empty-text">The link may be old or mistyped.</p>
+            <a class="btn btn-secondary" href="#">Go to spaces</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <span>Cowork Booking · times in Bangkok (UTC+7) · prices in THB</span>
+    <nav class="footer-links" aria-label="Footer"><a href="#">Spaces</a><a href="#">My bookings</a><a href="#">Help</a></nav>
+  </div>
+</footer>
+
+<script>
+/* Reference behaviour for the range picker. Server contract stays date + start + blocks (PUR-R07, PUR-R09). */
+(function () {
+  var OPEN = 8 * 60, BLOCKS = 24, MAX = 8, RATE_SATANG = 30000;           // 08:00-20:00, 1-8 blocks, THB 300/h
+  var booked = { 8: 1, 9: 1, 10: 1, 16: 1, 17: 1 };                          // 12:00-13:30, 16:00-17:00
+  var tooSoon = {};                                                          // e.g. today before now + 60 min
+  var start = 2, end = 4, picking = false, hover = null;                     // 09:00-10:30 preselected
+  var root = document.getElementById('slots');
+  function t(i) { var m = OPEN + i * 30; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + (m % 60 ? '30' : '00'); }
+  function dur(n) { var h = Math.floor(n / 2), m = n % 2 ? '30 min' : ''; return [h ? h + ' h' : '', m].filter(Boolean).join(' '); }
+  function thb(s) { return 'THB ' + (s / 100).toLocaleString('en-US', { minimumFractionDigits: 2 }); }
+  function price(n) { return Math.floor((RATE_SATANG * n + 1) / 2); }       // round_half_up(rate x blocks / 2), PUR-R17
+  function blocked(i) { return booked[i] || tooSoon[i]; }
+  function reach(s, e) { if (e < s || e - s + 1 > MAX) return false; for (var k = s; k <= e; k++) if (blocked(k)) return false; return true; }
+  var slots = [];
+  for (var i = 0; i < BLOCKS; i++) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'slot'; b.dataset.i = i;
+    b.innerHTML = '<span class="slot-time">' + t(i) + '</span><span class="slot-body"></span>';
+    if (blocked(i)) { b.disabled = true; b.classList.add(booked[i] ? 'is-booked' : 'is-unavailable'); }
+    root.appendChild(b); slots.push(b);
+  }
+  var endRow = document.createElement('div'); endRow.className = 'timeline-end'; endRow.setAttribute('aria-hidden', 'true');
+  endRow.innerHTML = '<span class="slot-time">20:00</span><span class="slot-body"></span>'; root.appendChild(endRow);
+
+  function paint() {
+    var pv = picking && hover !== null && hover > end && reach(start, hover) ? hover : null;
+    slots.forEach(function (el, i) {
+      var sel = start !== null && i >= start && i <= end, body = el.lastChild, n = end - start + 1;
+      el.classList.toggle('is-selected', sel);
+      el.classList.toggle('is-range-start', sel && i === start);
+      el.classList.toggle('is-range-end', sel && i === end);
+      el.classList.toggle('is-in-range', sel && i > start && i < end);
+      el.classList.toggle('is-preview', pv !== null && i > end && i <= pv);
+      el.classList.toggle('is-preview-end', pv !== null && i === pv);
+      el.setAttribute('aria-pressed', sel ? 'true' : 'false');
+      var state = booked[i] ? 'booked' : tooSoon[i] ? 'too soon' : sel ? 'selected' : 'free';
+      el.setAttribute('aria-label', t(i) + ' to ' + t(i + 1) + ', ' + state);
+      if (!blocked(i)) el.dataset.hint = picking && i > start && reach(start, i) ? 'End ' + t(i + 1) : 'Start ' + t(i);
+      if (booked[i]) body.innerHTML = '<span class="slot-reason">Booked</span>';
+      else if (tooSoon[i]) body.innerHTML = '<span class="slot-reason">Too soon</span>';
+      else if (sel && i === start) body.innerHTML = '<span class="slot-label">' + t(start) + '–' + t(end + 1) + '</span><span class="slot-sub">' + dur(n) + '</span>';
+      else if (pv !== null && i === pv) body.innerHTML = '<span class="slot-label">Until ' + t(pv + 1) + ' · ' + dur(pv - start + 1) + '</span>';
+      else body.innerHTML = '';
+    });
+    var n = end - start + 1;
+    document.getElementById('bar-title').textContent = 'Wed 7 Oct · ' + t(start) + '–' + t(end + 1);
+    document.getElementById('bar-meta').textContent = dur(n) + ' · ' + thb(price(n)) + (picking ? ' · tap a later time to extend' : ' · full refund until 24 h before');
+    document.getElementById('in-start').value = t(start);
+    document.getElementById('in-blocks').value = n;
+  }
+  root.addEventListener('click', function (e) {
+    var el = e.target.closest('.slot'); if (!el || el.disabled) return;
+    var i = +el.dataset.i;
+    if (picking && i > start && reach(start, i)) { end = i; picking = false; }
+    else if (picking && i === start) { picking = false; }
+    else { start = end = i; picking = true; }
+    paint();
+  });
+  root.addEventListener('mouseover', function (e) { var el = e.target.closest('.slot'); hover = el && !el.disabled ? +el.dataset.i : null; if (picking) paint(); });
+  root.addEventListener('mouseleave', function () { hover = null; if (picking) paint(); });
+  paint();
+
+  /* Calendar: October 2026, today Mon 5 Oct, horizon today + 30 days, Wed 7 selected. */
+  var cal = document.getElementById('cal'), html = '<div class="cal-header"><h3 class="cal-title">October 2026</h3><div class="cal-nav"><button class="btn btn-icon" type="button" aria-label="Previous month" disabled>‹</button><button class="btn btn-icon" type="button" aria-label="Next month">›</button></div></div><div class="cal-grid">';
+  ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].forEach(function (d) { html += '<span class="cal-dow" aria-hidden="true">' + d + '</span>'; });
+  for (var p = 0; p < 3; p++) html += '<span class="cal-day is-outside" aria-hidden="true"></span>';   // 1 Oct 2026 is a Thursday
+  for (var d = 1; d <= 31; d++) {
+    var cls = 'cal-day' + (d === 5 ? ' is-today' : '') + (d === 7 ? ' is-selected' : '');
+    html += d < 5 ? '<button class="' + cls + '" type="button" disabled aria-label="' + d + ' October, past">' + d + '</button>'
+                  : '<button class="' + cls + '" type="button"' + (d === 7 ? ' aria-pressed="true"' : '') + ' aria-label="' + d + ' October">' + d + '</button>';
+  }
+  cal.innerHTML = html + '</div>';
+
+  /* Placeholder QR (the services render a real one with segno). */
+  document.querySelectorAll('[data-qr]').forEach(function (box, n) {
+    var N = 25, seed = 7 + n * 13, s = '<svg viewBox="0 0 ' + (N + 2) + ' ' + (N + 2) + '" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#fff"/><g fill="#000" transform="translate(1 1)">';
+    function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    function finder(x, y) { s += '<path d="M' + x + ' ' + y + 'h7v7h-7zM' + (x + 1) + ' ' + (y + 1) + 'v5h5v-5z" fill-rule="evenodd"/><rect x="' + (x + 2) + '" y="' + (y + 2) + '" width="3" height="3"/>'; }
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var inF = (x < 8 && y < 8) || (x > N - 9 && y < 8) || (x < 8 && y > N - 9);
+      if (!inF && rnd() > 0.52) s += '<rect x="' + x + '" y="' + y + '" width="1" height="1"/>';
+    }
+    finder(0, 0); finder(N - 7, 0); finder(0, N - 7);
+    box.innerHTML = s + '</g></svg>';
+  });
+})();
+</script>
+</body>
+</html>

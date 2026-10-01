@@ -1028,6 +1028,27 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | 9 | boundary | form | Same, Payment back; the session is unpaid | At 10:14 Member A opens the space page and My bookings | The banner and the row say "Time to pay has run out on BK-7KQ2M9; cancel it, or try again from 10:15", not "pay by 10:13" |
 | 10 | boundary | form | Test clock 10:12:50; BK-7KQ2M9 held with an open session | Open the booking page in a browser and wait | manual: the page renders data-seconds-left="10"; within about 10 s "Continue to payment" is hidden and "Time to pay has run out" shows; the test clock is a fixed instant, so a reload still renders data-seconds-left="10" until the clock is set to 10:13:00 or later |
 
+### PUR-R41 The booking page shows the ticket code, read live from Access
+
+| Field | Value |
+|---|---|
+| Rule | On the owner's (or the Operator's) page of a confirmed booking whose grant is issued or checked in, show the ticket code in the XXXX-XXXX form next to the "View e-ticket" link; read it on each page view with GET /grants/{booking_reference} (bearer token, timeout 5 s, never inside a DB transaction) and never store it in Purchase; if Access does not answer, show the link and "Ticket code unavailable right now"; never show a code for a cancelled or expired booking. |
+| Policy status | Decided (D17, D20) |
+| Decision source | Project team (D17, D20; ADR-0021). Aligns the booking page with the course target's last step, Purchase showing the code to the Member ([journey site]), without copying Access data into Purchase (ADR-0003). |
+| Implementation evidence | Implemented in cowork-booking-purchase (v1.1.0); test run at the v1.1.0 merge: `test_pur_r41_booking_page_shows_the_live_ticket_code` passed (TRACEABILITY.md). |
+| Terms | PUR-T17, PUR-T18, AXS-T02, AXS-T08, AXS-T11 |
+| Candidate responsibility and dependencies | Purchase renders; Access owns the grant and the code (AXS-R01, AXS-R05) and answers GET /grants/{booking_reference}. |
+| Open question | None. |
+| Clarification owner | Project team |
+| Next use | Purchase booking page; e2e happy path. |
+
+| # | Kind | Channel | Given | When | Expected result under this rule |
+|---|---|---|---|---|---|
+| 1 | ordinary | form | BK-7KQ2M9 confirmed; its grant is issued with ticket code H7K3-9QXA | Member A opens /bookings/BK-7KQ2M9 | The page shows "H7K3-9QXA" and the "View e-ticket" link; Purchase stores no ticket code |
+| 2 | boundary | form | Same; Access does not answer within 5 s | Member A opens the booking page | "View e-ticket" link and "Ticket code unavailable right now"; the booking stays confirmed |
+| 3 | counterexample | form | BK-7KQ2M9 cancelled; its grant is revoked | Member A opens the booking page | No ticket code is shown; the status is cancelled |
+| 4 | counterexample | form | BK-7KQ2M9 confirmed | Member B (not the owner) opens /bookings/BK-7KQ2M9 | 404, no code (PUR-R05) |
+
 ## Payment
 
 ### PMT-R01 Only Purchase calls the Payment API
