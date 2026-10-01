@@ -45,6 +45,7 @@ Stop with `docker compose -f compose.yaml down` (add `-v` to wipe the data). The
 | [contracts/README.md](contracts/README.md) | The three contracts (verified), held beside each provider |
 | [TRACEABILITY.md](TRACEABILITY.md) | Every rule to its passing tests or manual check |
 | [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), [REVIEW_LOG.md](REVIEW_LOG.md), [ID_MAP.md](ID_MAP.md) | Open questions with defaults, review rounds, class-ID mapping |
+| [design/DESIGN.md](design/DESIGN.md), [design/preview.html](design/preview.html) | The black-and-white design system (derived from an Apple design analysis) shared by the three services |
 | [SOURCES.md](SOURCES.md), [inventory/](inventory/README.md) | Where everything came from |
 
 ## Checks

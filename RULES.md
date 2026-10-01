@@ -1035,7 +1035,7 @@ Generated IDs are examples. Tests assert the pattern (^BK-[23456789ABCDEFGHJKMNP
 | Rule | On the owner's (or the Operator's) page of a confirmed booking whose grant is issued or checked in, show the ticket code in the XXXX-XXXX form next to the "View e-ticket" link; read it on each page view with GET /grants/{booking_reference} (bearer token, timeout 5 s, never inside a DB transaction) and never store it in Purchase; if Access does not answer, show the link and "Ticket code unavailable right now"; never show a code for a cancelled or expired booking. |
 | Policy status | Decided (D17, D20) |
 | Decision source | Project team (D17, D20; ADR-0021). Aligns the booking page with the course target's last step, Purchase showing the code to the Member ([journey site]), without copying Access data into Purchase (ADR-0003). |
-| Implementation evidence | Not implemented yet (planned M8). |
+| Implementation evidence | Implemented in cowork-booking-purchase (v1.1.0); test run at the v1.1.0 merge: `test_pur_r41_booking_page_shows_the_live_ticket_code` passed (TRACEABILITY.md). |
 | Terms | PUR-T17, PUR-T18, AXS-T02, AXS-T08, AXS-T11 |
 | Candidate responsibility and dependencies | Purchase renders; Access owns the grant and the code (AXS-R01, AXS-R05) and answers GET /grants/{booking_reference}. |
 | Open question | None. |
