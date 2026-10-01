@@ -1,0 +1,97 @@
+# Integration stack: the three services built from their sibling repos, each with its own postgres:16.
+# No database port is published. Every variable has a dev default, so this runs without a .env file.
+# Normal run:  docker compose up -d --build --wait
+# e2e run:     docker compose -f compose.yaml -f compose.e2e.yaml up -d --build --wait   (see README.md)
+
+x-db-health: &db-health
+  interval: 2s
+  timeout: 3s
+  retries: 30
+
+x-app-health: &app-health
+  # python:3.12-slim has no curl; urlopen raises (exit 1) on anything but a 2xx
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+  interval: 3s
+  timeout: 5s
+  retries: 40
+  start_period: 5s
+
+services:
+  purchase-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: purchase
+      POSTGRES_PASSWORD: ${PURCHASE_DB_PASSWORD:-dev-purchase-db}
+      POSTGRES_DB: purchase
+    healthcheck: {<<: *db-health, test: ["CMD-SHELL", "pg_isready -U purchase -d purchase"]}
+    volumes: [purchase-db:/var/lib/postgresql/data]
+
+  payment-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-dev-payment-db}
+      POSTGRES_DB: payment
+    healthcheck: {<<: *db-health, test: ["CMD-SHELL", "pg_isready -U payment -d payment"]}
+    volumes: [payment-db:/var/lib/postgresql/data]
+
+  access-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: access
+      POSTGRES_PASSWORD: ${ACCESS_DB_PASSWORD:-dev-access-db}
+      POSTGRES_DB: access
+    healthcheck: {<<: *db-health, test: ["CMD-SHELL", "pg_isready -U access -d access"]}
+    volumes: [access-db:/var/lib/postgresql/data]
+
+  purchase:
+    build: ../../cowork-booking-purchase
+    ports: ["127.0.0.1:8001:8000"]
+    environment:  # only Purchase's own variables
+      DATABASE_URL: postgresql://purchase:${PURCHASE_DB_PASSWORD:-dev-purchase-db}@purchase-db:5432/purchase
+      SECRET_KEY: ${PURCHASE_SECRET_KEY:-dev-purchase-secret-key-0123456789abcdef}
+      APP_REVISION: ${APP_REVISION:-dev}
+      PUBLIC_URL: http://localhost:8001
+      PAYMENT_INTERNAL_URL: http://payment:8000
+      PAYMENT_PUBLIC_URL: http://localhost:8002
+      PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-dev-payment-api-token-0123456789abcdef}
+      ACCESS_INTERNAL_URL: http://access:8000
+      ACCESS_PUBLIC_URL: http://localhost:8003
+      ACCESS_API_TOKEN: ${ACCESS_API_TOKEN:-dev-access-api-token-0123456789abcdef}
+      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-operator@example.com}
+    healthcheck: *app-health
+    depends_on:
+      purchase-db: {condition: service_healthy}
+
+  payment:
+    build: ../../cowork-booking-payment
+    ports: ["127.0.0.1:8002:8000"]
+    environment:  # only Payment's own variables
+      DATABASE_URL: postgresql://payment:${PAYMENT_DB_PASSWORD:-dev-payment-db}@payment-db:5432/payment
+      SECRET_KEY: ${PAYMENT_SECRET_KEY:-dev-payment-secret-key-0123456789abcdef}
+      APP_REVISION: ${APP_REVISION:-dev}
+      PUBLIC_URL: http://localhost:8002
+      PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-dev-payment-api-token-0123456789abcdef}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-dev-operator-password}
+    healthcheck: *app-health
+    depends_on:
+      payment-db: {condition: service_healthy}
+
+  access:
+    build: ../../cowork-booking-access
+    ports: ["127.0.0.1:8003:8000"]
+    environment:  # only Access's own variables
+      DATABASE_URL: postgresql://access:${ACCESS_DB_PASSWORD:-dev-access-db}@access-db:5432/access
+      SECRET_KEY: ${ACCESS_SECRET_KEY:-dev-access-secret-key-0123456789abcdef}
+      APP_REVISION: ${APP_REVISION:-dev}
+      PUBLIC_URL: http://localhost:8003
+      ACCESS_API_TOKEN: ${ACCESS_API_TOKEN:-dev-access-api-token-0123456789abcdef}
+      STAFF_PASSWORD: ${STAFF_PASSWORD:-dev-staff-password}
+    healthcheck: *app-health
+    depends_on:
+      access-db: {condition: service_healthy}
+
+volumes:
+  purchase-db:
+  payment-db:
+  access-db:

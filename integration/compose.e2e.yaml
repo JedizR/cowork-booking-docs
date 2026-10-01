@@ -1,0 +1,9 @@
+# e2e only: opens POST /_test/clock on all three apps (D27, PUR-R38, PMT-R20, AXS-R19).
+# Never use this file for a normal run.
+services:
+  purchase:
+    environment: {TEST_CLOCK_ENABLED: "true"}
+  payment:
+    environment: {TEST_CLOCK_ENABLED: "true"}
+  access:
+    environment: {TEST_CLOCK_ENABLED: "true"}
