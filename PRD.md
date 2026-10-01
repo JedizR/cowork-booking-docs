@@ -251,6 +251,7 @@ As Member A, I want one page for my booking and a ticket I can show at the door,
 - AC11.7 The ticket link is a view-only bearer link: no login, no email, no buttons. Whoever has it can read the code; a made-up token gets 404 (ADR-0008). (AXS-R09)
 - AC11.8 The badge follows the state and the clock: Issued, Checked in, Expired (from 10:30), or Cancelled with a CANCELLED overlay; Cancelled wins over Expired, Expired over Checked in, Checked in over Issued. (AXS-R10, AXS-R16)
 - AC11.9 From 2026-10-07 10:30 the booking shows "Completed" with "View e-ticket" and no Cancel; the stored status stays confirmed and JSON says "completed": true. No booking is ever deleted. (PUR-R28)
+- AC11.10 The booking page of a confirmed booking shows the ticket code H7K3-9QXA next to "View e-ticket", read live from Access; if Access does not answer it shows "Ticket code unavailable right now". (PUR-R41)
 
 ### US12 My bookings
 

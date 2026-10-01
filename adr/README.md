@@ -26,3 +26,4 @@ To change a decision, add a new ADR that supersedes the old one, and set the old
 | [ADR-0018](0018-mock-checkout-test-cards.md) | Hosted mock checkout with test cards | Accepted, 2026-10-01 | PMT-R02, PMT-R04, PMT-R07, PMT-R08, PMT-R09, PMT-R10, PMT-R11, PMT-R12, PMT-R16, PUR-R20, PUR-R23 |
 | [ADR-0019](0019-service-authentication.md) | Service authentication | Accepted, 2026-10-01 | PMT-R01, AXS-R04, PMT-R17, AXS-R11, PUR-R02, PUR-R03, PUR-R04, PUR-R05, PUR-R06, PUR-R35, PMT-R07, AXS-R09 |
 | [ADR-0020](0020-card-data-handling.md) | Card data handling | Accepted, 2026-10-01 | PMT-R08, PMT-R13, PMT-R16, PMT-R17, PMT-R19, PUR-R36 |
+| [ADR-0021](0021-course-target-alignment.md) | Alignment with the course's "ready for splitting" target | Accepted | PUR-R17, PUR-R20, PUR-R23, PUR-R24, PUR-R25, PUR-R26, PUR-R41, AXS-R05, AXS-R09 |

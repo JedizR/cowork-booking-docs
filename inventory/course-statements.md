@@ -211,3 +211,19 @@ The syllabus never names an `Access` context; the second context is "Payments" (
 | 4 | "Booking amount" / "Booking price" | Class record, not course text; see [rules-prs.md](rules-prs.md) K3 | class PR #4 diff at 9478b3e |
 
 Spacey issue #173 (OPEN, created 2026-09-24, fetched 2026-10-01 with `gh issue view 173 -R cs403bkk-2026/spacey`), source of the D25 commission wording. Verbatim: "Spacey is a marketplace that lists spaces owned by others and earns a commission on bookings (e.g. 20% of each booking, like Booking.com's model)." Evidence type: `class issue #173 discussion` (added citation type for Spacey issues).
+
+## Added 2026-10-01: journey site
+
+| Statement (verbatim) | Topic | Evidence |
+|---|---|---|
+| "1 · EXISTING STATE" / "The application does everything" / "Payment state lives on booking. Access code is not saved." | Starting point | course site [journey site] fetched 2026-10-01 |
+| "2 · PROPOSED, READY FOR SPLITTING" / "Each responsibility has an owner" | Target | course site [journey site] fetched 2026-10-01 |
+| "Still one application. Ordinary function calls, explicit inputs/results, owned data access. Separate services and deployment cycles come next." | Target and next step | course site [journey site] fetched 2026-10-01 |
+| "Collect agreed amount for booking reference" / "Payment reference and outcome" / "Authorised issuance request" / "Grant reference and code" | Calls in the target sequence | course site [journey site] fetched 2026-10-01 |
+| "Each module owns its records. No reading another module's tables." | Data ownership | course site [journey site] fetched 2026-10-01 |
+| "Ready means checked: ownership is enforced, migrations preserve known facts, and the existing journey plus failure/retry cases still work. Moving functions alone is not enough." | Definition of ready | course site [journey site] fetched 2026-10-01 |
+| "Agree Access grant semantics before implementation: persistence alone does not prescribe code reuse, expiry or revocation." | Grant semantics | course site [journey site] fetched 2026-10-01 |
+| "Failure and retry handling, including a recorded payment followed by a failed booking update, remain part of the contract and checks" | Failure cases | course site [journey site] fetched 2026-10-01 |
+| "Purchase skips a new collection for already-paid or subscription-covered bookings." | Coverage | course site [journey site] fetched 2026-10-01 |
+| "Frontend owns the screen. Backend owns the decisions." | Frontend boundary | course site [journey site] fetched 2026-10-01 |
+| "Do not invent historical payments or old access codes." | Migration | course site [journey site] fetched 2026-10-01 |
