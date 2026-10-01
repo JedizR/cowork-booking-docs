@@ -346,3 +346,13 @@ Counts (completed lenses): blocker 0, major 7, minor 23. No blocker. As this is 
 | 30 | operator-staff | minor | diagrams/states.mmd: Purchase / Booking composite (lines 4-19) | The one state diagram shows Payment's refund outcome and Access's grant state, but not the Purchase follow-up states that drive every Operator flag and Retry. These are grant_status (not_requested, pending, issued, revok | open: PUR-Q39 |
 
 Gate: passed after round 5 with no blocker remaining (non-blockers moved to OPEN_QUESTIONS.md); deviation: 3 of 6 round-5 lenses incomplete.
+
+## M4 contract sign-off (2026-10-01)
+
+Each provider contract was moved beside its provider's code (CONTRACT.md and openapi.yaml in the provider repo) and reviewed by a consumer-lens reviewer. A contract is agreed only after this sign-off; the provider repo is then tagged `contract-v1`. Reviewers did not edit the contracts; the findings below are recorded for contract-v2 or as consumer-side handling.
+
+| Contract | Reviewer | Verdict | Checked and findings |
+|---|---|---|---|
+| Payment contract (cowork-booking-payment CONTRACT.md) | Purchase consumer-lens reviewer | agreed | Every BRIEF section 7 flow that calls Payment, request and response fields against the field list in the contract, status codes, natural-key idempotency, timeout 5 s, the five example kinds; OpenAPI parses. Non-blocking findings: the expired read rule wording in 4.1, the refund balance terms (succeeded refunds only), the redirect target wording (Purchase builds PAYMENT_PUBLIC_URL/pay/id), repeat-create rows in a final state, concurrent create for one booking reference, stale header links after the move (fixed in the provider repo). |
+| Access contract (cowork-booking-access CONTRACT.md) | Purchase consumer-lens reviewer | agreed | Every Purchase call in book and pay, lost redirect, coverage, held and confirmed cancel and the check-in window; fields, status codes, natural-key idempotency, timeout 5 s, pending and retry handling; five example kinds; OpenAPI parses. Non-blocking findings: consumer-side race on storing a grant answer, revoke racing a grant request, stale links after the move (fixed), time rendering wording, a revoke-before-issue example, 5XX responses not declared in OpenAPI. |
+| Purchase public contract (cowork-booking-purchase CONTRACT.md) | Browser and e2e-suite consumer-lens reviewer | agreed | Every BRIEF section 7 flow, booking fields against the OpenAPI schema and every example, five example kinds, OpenAPI parses. Non-blocking findings: stale links after the move (fixed), return_to missing from OpenAPI, cancel_url not named in the text, timeout rule scope for My bookings, sort direction of the mine endpoint, unpinned JSON 400 cases. |
